@@ -17,8 +17,8 @@ export class RequestAnswerComponentComponent implements OnInit {
     showLoading: false,
     from: '',
     to:'',
-    dateTimeDep: '',
-    dateTimeArr: ''
+    depDatetime: '',
+    retDatetime: ''
   }
 
   receiveMessage($event :any) {
