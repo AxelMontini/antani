@@ -34,5 +34,5 @@
 	<sbb-error *ngIf="dep_datetime.past">Departure time is in the past.</sbb-error>
 	<sbb-error *ngIf="ret_datetime.past">Return must be after departure.</sbb-error>
 	<!-- <sbb-error *ngIf="datetime_past">Time is in the past.</sbb-error> -->
-	<button sbb-button (click)="submit()" class="submit">Submit</button>
+	<button sbb-button (click)="submit()" class="submit" style="max-width:100% !important;margin-top: -1vh;">Let's bike!</button>
 </form>

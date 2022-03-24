@@ -67,12 +67,7 @@ export class RequestComponent implements OnInit {
 
   /* Send info so that answer component knows that request has been submitted */
   message: boolean = true;
-
   @Output() messageEvent = new EventEmitter<boolean>();
-
-  sendMessage() {
-    this.messageEvent.emit(this.message);
-  }
   /*   End of sending */
 
   get dep_time(): Time {
@@ -96,11 +91,9 @@ export class RequestComponent implements OnInit {
   }
 
   submit(): void {
-    console.log(this.from.value);
     if (!this.time_invalid) {
-      console.log(this.dep_datetime);
       /* Send to answer module */
-      this.sendMessage();
+      this.messageEvent.emit(this.message);
       /* */
     }
   }

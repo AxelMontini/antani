@@ -1,4 +1,4 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, Input, OnChanges, SimpleChanges } from '@angular/core';
 
 @Component({
   selector: 'app-answer',
@@ -6,7 +6,7 @@ import { Component, OnInit, Input } from '@angular/core';
   styleUrls: ['./answer.component.scss']
 })
 
-export class AnswerComponent implements OnInit {
+export class AnswerComponent implements OnInit, OnChanges {
   
 
 
@@ -17,8 +17,15 @@ export class AnswerComponent implements OnInit {
 
   /* Request handling */
   @Input() showLoading: boolean = false;
+  @Input() showMeteo: boolean = false;
+  @Input() showTrains: boolean = false;
   /* */
-  showMeteo :boolean = true;
-  showTrains :boolean = true;
 
+  ngOnChanges(changes: SimpleChanges) {
+    if(this.showLoading) {
+      this.showMeteo = true;
+      this.showTrains = true;
+      this.showLoading = false;
+    }
+  }
 }

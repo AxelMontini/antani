@@ -9,7 +9,6 @@ import { HttpClientModule } from '@angular/common/http';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { DescriptionComponent } from './description/description.component';
 import { RequestComponent } from './request/request.component';
 import { AnswerComponent } from './answer/answer.component';
 
@@ -20,7 +19,6 @@ import { TrainsComponent } from './trains/trains.component';
 import { StationsComponent } from './stations/stations.component';@NgModule({
   declarations: [
     AppComponent,
-    DescriptionComponent,
     RequestComponent,
     AnswerComponent,
     RequestAnswerComponentComponent,
