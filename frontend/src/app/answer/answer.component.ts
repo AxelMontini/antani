@@ -25,7 +25,7 @@ export class AnswerComponent implements OnInit, OnChanges {
   }
   /* */
   showMeteo :boolean = false;
-  showTrains :boolean = false;
+  showTrains :boolean = true;
   meteo :any;
 
   ngOnChanges(changes: SimpleChanges) {

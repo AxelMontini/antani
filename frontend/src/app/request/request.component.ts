@@ -50,7 +50,7 @@ export class RequestComponent implements OnInit {
 
   autoCompleteFrom() {
     if (this.from.value != '')
-      fetch(`/api/stations/${this.from.value}`)
+      fetch(`/api/stations?start=${this.from.value}`)
         .then((r) => r.json())
         .then((r) => (this.optionsFrom = r['stations']));
     else this.optionsFrom = this.defaultOptions;
@@ -58,7 +58,7 @@ export class RequestComponent implements OnInit {
 
   autoCompleteTo() {
     if (this.to.value != '')
-      fetch(`/api/stations/${this.to.value}`)
+      fetch(`/api/stations?start=${this.to.value}`)
         .then((r) => r.json())
         .then((r) => (this.optionsTo = r['stations']));
     else this.optionsTo = this.defaultOptions;

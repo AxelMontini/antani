@@ -1,4 +1,4 @@
-
+use sqlx::PgPool;
 
 // async fn occupancy(_client: &State<Client>, db: &State<PgPool>, trainNr: i32, date: String) -> anyhow::Result<()> {
 //     let stops = stops(_client, db, trainNr).await;

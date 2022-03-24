@@ -21,6 +21,7 @@ use crate::api::LocationRequestType;
 
 mod api;
 mod db;
+mod utils;
 
 #[derive(Serialize, Debug)]
 struct Locations {}
@@ -74,7 +75,6 @@ async fn stations(db: &State<PgPool>, start: String) -> Json<Stations> {
     );
 
     let response = query.fetch_all(db.deref()).await.unwrap(); //TODO: Handle error and do not PANIK!!
-    println!("{:?}", response);
     let dio = Stations {
         stations: response.iter().map(|e| return e.name.to_string()).collect(),
     };
@@ -113,7 +113,7 @@ struct Fields {
 
 /// get all the stops of train number <trainNr>: 324 -> ["Chiasso", ...]
 #[get("/stops?<trainNr>")]
-async fn stops(client: &State<Client>, db: &State<PgPool>, trainNr: i32) -> Json<Stops> {
+pub async fn stops(client: &State<Client>, db: &State<PgPool>, trainNr: i32) -> Json<Stops> {
     let params = [
         ("dataset", "ist-daten-sbb"),
         ("q", &trainNr.to_string()),
@@ -239,7 +239,10 @@ async fn connections(
     };
 
     let res = client.get(CONNECTIONS).query(&req).send().await.unwrap();
+    //let text = res.text().await.unwrap();
     let cr: ConnectionResponse = res.json().await.unwrap();
+    //println!("JSON: {}", text);
+    //let cr: ConnectionResponse = serde_json::from_str(&text).unwrap();
 
     // Try to sort connections based on bike places availability
     //let algorithm = |a| 1.0;
@@ -321,6 +324,18 @@ struct MeteoData {
 struct Data {
     parameter: String,
     value: f64,
+}
+
+
+#[get("/calc?<trainNr>&<date>")]
+async fn occupancy(client: &State<Client>, db: &State<PgPool>, trainNr: i32, date: String) {
+    let stops = stops(client, db, trainNr).await.0.stops;
+    let abbrevs = futures::future::join_all(stops.iter().map(|e| abbrev(db, e.to_string()))).await;
+    let capacity = capacity(db, date, trainNr).await.unwrap().0.capacity;
+
+    let legsAmount = stops.len() - 1;
+    let mut legs = vec![0; legsAmount];
+    
 }
 
 #[rocket::main]

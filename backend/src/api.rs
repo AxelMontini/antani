@@ -1,4 +1,4 @@
-use chrono::{Date, DateTime, Duration, DurationRound, NaiveTime, Utc};
+use chrono::{Date, DateTime, FixedOffset};
 use reqwest::Url;
 use rocket::local::asynchronous::LocalRequest;
 use serde::{Deserialize, Serialize};
@@ -152,10 +152,10 @@ pub struct Connection {
     pub from: Checkpoint,
     pub to: Checkpoint,
     pub duration: String,
-    pub service: Service,
+    pub service: Option<Service>,
     pub products: Vec<String>,
-    pub capacity1st: u8,
-    pub capacity2nd: u8,
+    pub capacity1st: Option<u8>,
+    pub capacity2nd: Option<u8>,
     pub sections: Vec<Section>,
 }
 
@@ -171,13 +171,13 @@ pub struct Section {
 pub struct Journey {
     pub name: String,
     pub category: String,
-    pub categoryCode: u32,
-    pub number: u32,
-    pub operator: u32,
+    pub categoryCode: Option<u32>,
+    pub number: String,
+    pub operator: String,
     pub to: String,
     pub passList: Vec<Checkpoint>,
-    pub capacity1st: u8,
-    pub capacity2nd: u8,
+    pub capacity1st: Option<u8>,
+    pub capacity2nd: Option<u8>,
 }
 
 /// What is this for???
@@ -190,20 +190,20 @@ pub struct Service {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Checkpoint {
     pub station: Location,
-    pub arrival: NaiveTime,
-    pub departure: Option<NaiveTime>,
+    pub arrival: Option<DateTime<FixedOffset>>,
+    pub departure: Option<DateTime<FixedOffset>>,
     pub delay: Option<u32>,
-    pub platform: u32, // TODO: Can be string?
+    pub platform: Option<String>,
     pub prognosis: Option<Prognosis>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Prognosis {
-    pub arrival: DateTime<Utc>,
-    pub departure: Option<DateTime<Utc>>,
-    pub platform: u32,
-    pub capacity1st: u8,
-    pub capacity2nd: u8,
+    pub arrival: Option<DateTime<FixedOffset>>,
+    pub departure: Option<DateTime<FixedOffset>>,
+    pub platform: Option<String>,
+    pub capacity1st: Option<String>,
+    pub capacity2nd: Option<String>,
 }
 
 #[cfg(test)]
