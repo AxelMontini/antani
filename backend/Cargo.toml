@@ -6,3 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+rocket = { version = "0.5.0-rc.1", features = ["secrets", "tls", "json"] }
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+minidom = "0.14"
+quick-xml = { version = "0.22", features = ["serialize"] }
+sqlx = { version = "0.5.11", features = ["postgres", "runtime-tokio-rustls"] }
+anyhow = "1"
+derive_more = "0.99.17"
