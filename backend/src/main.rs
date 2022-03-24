@@ -4,7 +4,7 @@ use anyhow::Context;
 use api::{
     Connection, ConnectionRequest, ConnectionResponse, LocationRequest, CONNECTIONS, LOCATIONS,
 };
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, Utc, FixedOffset};
 use reqwest::Client;
 use rocket::{
     form::FromFormField,
@@ -14,6 +14,7 @@ use rocket::{
     serde::{json::Json, Deserialize, Serialize},
     State,
 };
+
 use sqlx::{postgres::PgPoolOptions, PgPool};
 
 use crate::api::LocationRequestType;
@@ -176,26 +177,6 @@ async fn capacity(
     }))
 }
 
-// async fn occupancy(_client: &State<Client>, db: &State<PgPool>, trainNr: i32, date: String) -> anyhow::Result<()> {
-//     let stops = stops(_client, db, trainNr).await;
-//     let abbrevs = stops.stops.iter().map(|e| abbrev(db, e.to_string()));
-//     let capacity
-
-//     let capacity: Option<i32> = Some(0); // SELECT max(capacity) FROM dataset WHERE connectionDate=date and trainNr=trainNumber;
-//     let stopsAmount = stops.len();
-//     let occupancy = vec![0; stopsAmount - 1];
-//     // O(n^2) btw sucami le palle frocio bastardo
-//     // No u
-//     // specchio riflesso buttati nel cesso + ratio + based
-//     for i in 0..stopsAmount {
-//         for j in (i + 1)..stopsAmount {
-//             for ()
-//             occupancy[]
-//         }
-//     }
-//     Ok(())
-// }
-
 #[derive(derive_more::From, derive_more::Into, Serialize, Deserialize)]
 struct DateTimeUtc(DateTime<Utc>);
 
@@ -237,11 +218,14 @@ async fn connections(
     client: &State<Client>,
     from: String,
     to: String,
-    datetime: DateTimeUtc,
+    datetime: String,
     is_arrival_time: bool,
 ) -> Result<Json<FConnections>, status::BadRequest<String>> {
     // We assume that bike=true since it's the website for bicycles
-
+    let datetime = DateTime::<FixedOffset>::parse_from_rfc3339(datetime.as_str())
+        .map_err(|e| e.to_string())
+        .map_err(Some)
+        .map_err(status::BadRequest)?;
     let date = Some(datetime.format("%Y-%m-%d").to_string());
     let time = Some(datetime.format("%H-%M-%S").to_string());
     let req = ConnectionRequest {
@@ -273,7 +257,71 @@ async fn connections(
     }))
 }
 
+#[derive(Serialize)]
+struct Coordinates {
+    lat: f64,
+    long: f64,
+}
 
+/// get the coordinates of the <station>: Chiasso -> {15.0, 45.2}
+#[get("/coordinates?<station>")]
+async fn coordinates(db: &State<PgPool>, station: String) -> Json<Coordinates> {
+    let query = sqlx::query!("SELECT lat, long FROM stations WHERE name=$1", station);
+    let response = query.fetch_one(db.deref()).await.unwrap();
+    Json(Coordinates {
+        lat: response.lat,
+        long: response.long,
+    })
+}
+
+/// get weather information for the <date> at the train <station>: date=2022-10-22T16:16:16Z&station=Chiasso -> [temperature, rainfall, weather]
+#[get("/weather?<date>&<station>")]
+async fn weather(client: &State<Client>, db: &State<PgPool>, date: String, station: String) -> Json<MeteoData> {
+    let token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJOMDhQek52bDdqNGFfSlBmZ0FlZFNYTHNjcmprbmZ4OXppR2hxcHN1dkt3In0.eyJleHAiOjE2NDgxMzY0NDEsImlhdCI6MTY0ODEzMTk0MSwianRpIjoiOTcwMzE0OTktNzUzOS00ZDVlLTkyZWYtODU5MjllODgwOTJlIiwiaXNzIjoiaHR0cHM6Ly9zc28uc2JiLmNoL2F1dGgvcmVhbG1zL1NCQl9QdWJsaWMiLCJhdWQiOiJhcGltLXdlYXRoZXJfc2VydmljZS1wcm9kLWF3cyIsInN1YiI6IjQ1NGNiMjM5LTZjN2EtNGU3Zi05YzY3LWQ0ZWQyMDAzMzdmYyIsInR5cCI6IkJlYXJlciIsImF6cCI6Ijg1OGY2MzRmIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwczovL2RldmVsb3Blci5zYmIuY2giXSwic2NvcGUiOiJjbGllbnQtaW5mbyBzYmJ1aWQgcHJvZmlsZSBlbWFpbCBTQkIiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImNsaWVudEhvc3QiOiIyMTcuMTkyLjEwMi4xNCIsImNsaWVudElkIjoiODU4ZjYzNGYiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXJ2aWNlLWFjY291bnQtODU4ZjYzNGYiLCJjbGllbnRBZGRyZXNzIjoiMjE3LjE5Mi4xMDIuMTQiLCJlbWFpbCI6InNlcnZpY2UtYWNjb3VudC04NThmNjM0ZkBwbGFjZWhvbGRlci5vcmcifQ.k2dTEXqjHTeInatjFF-L0Y9aOwQpehBMdKB9LQB-6zVuT4KQGvJVKcxqGF-zydbiWoMJ4Mi1jG3VhCOzNiSaARJ1Cq7577eonfq9zQBUfiag8EOLvBsj4lZ-vk2kJhuHBzoxx-XO0DhxtIKEZE715pw5OR8j2gh1EJCbXfniV8vVtOR7e5ND1yGCujREYgqf5g90152ewKPN5bDtdVukbo-Jj4qD0aRc5z1oxhoc56oj2eJmtqrzkAT4Tx3Kdu7Nu46RgGyXCEblMEePeWm5FXUNbGKCVisrTNOI5OMKi_NplYqoc7g6d7az9t1ZuwBup30xolR85C_WYPJb9epA2Q";
+    let url = "https://weather.api.sbb.ch:443";
+    let params = "t_2m:C,precip_1h:mm,weather_symbol_1h:idx";
+    let coord = coordinates(db, station).await.0;
+
+    let req = format!(
+        "{}/{}/{}/{},{}/json",
+        url, date, params, coord.lat, coord.long
+    );
+
+    let a = client.post(req).bearer_auth(token).send().await.unwrap();
+    let raw_array: serde_json::Value = a.json().await.unwrap();
+    let mut acc = vec![];
+    let j = raw_array.get("data").unwrap();
+    for i in 0..3 {
+        let data = j.get(i).unwrap();
+        let param = data.get("parameter").unwrap().as_str().unwrap();
+        let value = data
+            .get("coordinates")
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .get("dates")
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .get("value")
+            .unwrap()
+            .as_f64()
+            .unwrap();
+        acc.push(Data{parameter: param, value});
+    }
+    Json(MeteoData { data: acc })
+}
+
+#[derive(Serialize)]
+struct MeteoData {
+    data: Vec<Data>,
+}
+
+#[derive(Serialize)]
+struct Data {
+    parameter: String,
+    value: f64,
+}
 
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
