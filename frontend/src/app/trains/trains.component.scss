@@ -1,0 +1,21 @@
+:host .connection {
+  padding: 10px;
+}
+
+:host .connection-header-content {
+  font-size: 20px;
+  margin: 0;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  grid-template-columns: 30% 20% 20% 10% 20%;
+  grid-template-areas:
+    "name duration changes occupation action"
+    "time";
+}
+
+:host .connection-header-content .time {
+  grid-area: "time";
+  font-size: 13px;
+  font-weight: bolder;
+}

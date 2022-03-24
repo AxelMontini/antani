@@ -1,37 +1,49 @@
-:host .dep {
-    grid-area: dep;
+:host .date input {
+    max-width: 100%;
 }
 
-:host .ret {
-    grid-area: ret;
+:host .from-to-container {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    min-width: 70%;
+    max-width: 80%;
 }
 
-:host .date {
-    grid-area: date;
+:host .date-time-container {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
 }
 
-:host .submit {
-    grid-area: submit;
+:host .time-container {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    max-width: 62%;
+}
+
+@media screen and (max-width: 768px) {
+    :host .from-to-container {
+        flex-wrap: wrap;
+    }
+
+    :host .date-time-container {
+        flex-wrap: wrap;
+    }
+}
+
+:host .submit-container {
+    display: flex;
+    flex-wrap: nowrap;
 }
 
 :host .form-container {
     display: grid;
     grid-template-columns: 50% 50%;
     grid-template-rows: auto;
-    grid-template-areas: 
-        "date date"
-        "dep ret"
-        "submit submit"
-}
-
-
-@media only screen and (min-width: 600px) {
-    :host .form-container {
-        display: grid;
-        grid-template-columns: 60% 20% 20%;
-        grid-template-rows: auto;
-        grid-template-areas: 
-            "date dep ret"
-            "submit submit submit"
-    }
+    grid-template-areas:
+        "left right"
+        "left2 right2"
+        "submit submit";
 }

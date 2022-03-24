@@ -4,6 +4,7 @@ import { Component, OnInit } from '@angular/core';
 interface Connection {
   name: string;
   description: string;
+  icon?: string;
 }
 
 @Component({
@@ -15,7 +16,8 @@ export class TrainsComponent implements OnInit {
   trains: Connection[] = [
     {
       name: "lol",
-      description: "Ciufciuf"
+      description: "Ciufciuf",
+      icon: "kom:train"
     },
     {
       name: "1",

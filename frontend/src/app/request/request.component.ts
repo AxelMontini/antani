@@ -12,9 +12,31 @@ export class RequestComponent implements OnInit {
   date: FormControl = new FormControl(new Date(), [Validators.required]);
   ret: FormControl = new FormControl('', [Validators.required]);
   dep: FormControl = new FormControl('', [Validators.required]);
+
+  // From and to stations helpful stuff
   from: FormControl = new FormControl('', [Validators.required]);
   to: FormControl = new FormControl('', [Validators.required]);
 
+  searchControl = new FormControl('');
+  searchValues: string[] = [];
+  options: string[] = [
+    'Zurich',
+    'Bern',
+    'Basel',
+    'Lausanne',
+    'Luzern',
+    'St. Gallen',
+    'Lugano',
+    'Thun',
+  ];
+
+  handleSearch(value: string) {
+    // Only display up to the last five search values.
+    // This is only for the purpose of this example.
+    this.searchValues = [value, ...this.options].slice(0, 5);
+  }
+
+  // End
 
   date_past: boolean = false;
 

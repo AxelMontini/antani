@@ -1,9 +1,18 @@
-
 <sbb-accordion>
-	<sbb-expansion-panel *ngFor="let train of trains" hideToggle>
-		<sbb-expansion-panel-header >
-			This is the train {{ train.name }}
-		</sbb-expansion-panel-header>
-		{{ train.description }}
-	</sbb-expansion-panel>
+  <sbb-expansion-panel *ngFor="let train of trains" hideToggle>
+    <sbb-expansion-panel-header class="connection">
+      <div class="connection-header-content">
+        <div class="name">
+          <sbb-icon svgIcon="{{ train.icon }}"> </sbb-icon>
+          {{ train.name }}
+        </div>
+		<div class="duration">10h 5m</div>
+		<div class="changes">18</div>
+		<div class="occupation">A lot</div>
+		<div class="Action">Do something</div>
+        <div class="time">13:00 - 14:00</div>
+      </div>
+    </sbb-expansion-panel-header>
+    {{ train.description }}
+  </sbb-expansion-panel>
 </sbb-accordion>
