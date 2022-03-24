@@ -37,28 +37,28 @@ pub struct LocationTypeError(String);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Location {
-    id: String,
+    pub id: String,
     #[serde(rename = "type")]
-    ty: Option<LocationType>,
-    name: String,
-    score: Option<f32>,
-    coordinate: Coordinate,
-    distance: Option<f32>,
+    pub ty: Option<LocationType>,
+    pub name: String,
+    pub score: Option<f32>,
+    pub coordinate: Coordinate,
+    pub distance: Option<f32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Coordinate {
     #[serde(rename = "type")]
-    ty: String,
+    pub ty: String,
     /// latitude
-    x: f32,
+    pub x: f32,
     /// longitude
-    y: f32,
+    pub y: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LocationResponse {
-    stations: Vec<Location>,
+    pub stations: Vec<Location>,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -100,23 +100,23 @@ impl TryFrom<&str> for LocationRequestType {
 
 #[derive(Debug, Default, Serialize)]
 pub struct ConnectionRequest {
-    from: String,
-    to: String,
-    via: Option<Vec<String>>,
-    date: Option<String>,
-    time: Option<String>,
-    is_arrival_time: Option<bool>,
+    pub from: String,
+    pub to: String,
+    pub via: Option<Vec<String>>,
+    pub date: Option<String>,
+    pub time: Option<String>,
+    pub is_arrival_time: Option<bool>,
     #[serde(rename = "transportations[]")]
-    transportations: Option<String>,
+    pub transportations: Option<String>,
     /// 1..=16
-    limit: Option<u8>,
+    pub limit: Option<u8>,
     /// 0..=3
-    page: Option<u8>,
-    direct: Option<bool>,
-    sleeper: Option<bool>,
-    couchette: Option<bool>,
-    bike: Option<bool>,
-    //accessibility: Option<bool>,
+    pub page: Option<u8>,
+    pub direct: Option<bool>,
+    pub sleeper: Option<bool>,
+    pub couchette: Option<bool>,
+    pub bike: Option<bool>,
+    //pub accessibility: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -144,66 +144,66 @@ impl Into<String> for TransportationType {
 
 #[derive(Deserialize, Debug)]
 pub struct ConnectionResponse {
-    connections: Vec<Connection>,
+    pub connections: Vec<Connection>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Connection {
-    from: Checkpoint,
-    to: Checkpoint,
-    duration: String,
-    service: Service,
-    products: Vec<String>,
-    capacity1st: u8,
-    capacity2nd: u8,
-    sections: Vec<Section>,
+    pub from: Checkpoint,
+    pub to: Checkpoint,
+    pub duration: String,
+    pub service: Service,
+    pub products: Vec<String>,
+    pub capacity1st: u8,
+    pub capacity2nd: u8,
+    pub sections: Vec<Section>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Section {
-    journey: Option<Journey>,
-    walk: Option<f32>,
-    departure: Checkpoint,
-    arrival: Checkpoint,
+    pub journey: Option<Journey>,
+    pub walk: Option<f32>,
+    pub departure: Checkpoint,
+    pub arrival: Checkpoint,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Journey {
-    name: String,
-    category: String,
-    categoryCode: u32,
-    number: u32,
-    operator: u32,
-    to: String,
-    passList: Vec<Checkpoint>,
-    capacity1st: u8,
-    capacity2nd: u8,
+    pub name: String,
+    pub category: String,
+    pub categoryCode: u32,
+    pub number: u32,
+    pub operator: u32,
+    pub to: String,
+    pub passList: Vec<Checkpoint>,
+    pub capacity1st: u8,
+    pub capacity2nd: u8,
 }
 
 /// What is this for???
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Service {
-    regular: String,
-    irregular: String,
+    pub regular: String,
+    pub irregular: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Checkpoint {
-    station: Location,
-    arrival: NaiveTime,
-    departure: Option<NaiveTime>,
-    delay: Option<u32>,
-    platform: u32, // TODO: Can be string?
-    prognosis: Option<Prognosis>,
+    pub station: Location,
+    pub arrival: NaiveTime,
+    pub departure: Option<NaiveTime>,
+    pub delay: Option<u32>,
+    pub platform: u32, // TODO: Can be string?
+    pub prognosis: Option<Prognosis>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Prognosis {
-    arrival: DateTime<Utc>,
-    departure: Option<DateTime<Utc>>,
-    platform: u32,
-    capacity1st: u8,
-    capacity2nd: u8,
+    pub arrival: DateTime<Utc>,
+    pub departure: Option<DateTime<Utc>>,
+    pub platform: u32,
+    pub capacity1st: u8,
+    pub capacity2nd: u8,
 }
 
 #[cfg(test)]

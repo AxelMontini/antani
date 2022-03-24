@@ -1,10 +1,19 @@
-use std::ops::Deref;
+use std::{ops::Deref, str::FromStr};
 
 use anyhow::Context;
-use api::{LocationRequest, LOCATIONS, ConnectionRequest, ConnectionResponse};
-use chrono::{DateTime, Utc, NaiveDate};
+use api::{
+    Connection, ConnectionRequest, ConnectionResponse, LocationRequest, CONNECTIONS, LOCATIONS,
+};
+use chrono::{DateTime, NaiveDate, Utc};
 use reqwest::Client;
-use rocket::{get, launch, response::status, routes, serde::{Serialize, Deserialize, json::Json}, State, form::FromFormField};
+use rocket::{
+    form::FromFormField,
+    get, launch,
+    response::status,
+    routes,
+    serde::{json::Json, Deserialize, Serialize},
+    State,
+};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 
 use crate::api::LocationRequestType;
@@ -104,7 +113,6 @@ struct Fields {
 /// get all the stops of train number <trainNr>: 324 -> ["Chiasso", ...]
 #[get("/stops?<trainNr>")]
 async fn stops(client: &State<Client>, db: &State<PgPool>, trainNr: i32) -> Json<Stops> {
-
     let params = [
         ("dataset", "ist-daten-sbb"),
         ("q", &trainNr.to_string()),
@@ -114,17 +122,22 @@ async fn stops(client: &State<Client>, db: &State<PgPool>, trainNr: i32) -> Json
         .get("https://data.sbb.ch/api/records/1.0/search/")
         .query(&params)
         .send()
-        .await.unwrap()
+        .await
+        .unwrap()
         .json::<Response>()
-        .await.unwrap()
+        .await
+        .unwrap()
         .get_stations();
-    Json(Stops {stops: res})
+    Json(Stops { stops: res })
 }
 
 /// get abbreviation of <station>: "Zurich HB" -> "ZUE"
 #[get("/abbrev?<station>")]
 async fn abbrev(db: &State<PgPool>, station: String) -> String {
-    let query = sqlx::query!(r#"SELECT abbrev FROM stations WHERE name=$1 or locality=$1"#, station);
+    let query = sqlx::query!(
+        r#"SELECT abbrev FROM stations WHERE name=$1 or locality=$1"#,
+        station
+    );
     let response = query.fetch_one(db.deref()).await.unwrap();
     response.abbrev.unwrap()
 }
@@ -136,51 +149,52 @@ struct Capacity {
     capacity: i32,
 }
 
-#[derive(derive_more::From, derive_more::Into, Serialize, Deserialize)]
-struct NaiveDateWrapper(NaiveDate);
-impl Deref for NaiveDateWrapper {
-    type Target = NaiveDate;
-    
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl FromFormField for NaiveDate {
-
-}
-
+/// Takes a date in format YYYY-mm-dd
 #[get("/capacity?<date>&<trainNr>")]
-async fn capacity(db: &State<PgPool>, date: NaiveDate, trainNr: i32) -> Json<Capacity> {
-    let query = sqlx::query!(r#"SELECT max(capacity) FROM dataset WHERE connectionDate=$1 and trainNr=$2"#, date, trainNr);
+async fn capacity(
+    db: &State<PgPool>,
+    date: String,
+    trainNr: i32,
+) -> Result<Json<Capacity>, status::BadRequest<String>> {
+    // TODO: Check if date should be used as Swiss Timezone or Utc in the database
+    let date = date
+        .parse::<DateTime<Utc>>()
+        .map_err(|e| status::BadRequest(Some(e.to_string())))?
+        .date()
+        .naive_local();
+
+    let query = sqlx::query!(
+        r#"SELECT max(capacity) FROM dataset WHERE connectionDate=$1 and trainNr=$2"#,
+        date,
+        trainNr
+    );
     let response = query.fetch_one(db.deref()).await.unwrap();
-    Json(Capacity {date, trainNr, capacity: response.max.unwrap()})
+    Ok(Json(Capacity {
+        date,
+        trainNr,
+        capacity: response.max.unwrap(),
+    }))
 }
 
-async fn occupancy(_client: &State<Client>, db: &State<PgPool>, trainNr: i32, date: String) -> anyhow::Result<()> {
-    let stops = stops(_client, db, trainNr).await;
-    let abbrevs = stops.stops.iter().map(|e| abbrev(db, e.to_string()));
-    let capacity 
-    
+// async fn occupancy(_client: &State<Client>, db: &State<PgPool>, trainNr: i32, date: String) -> anyhow::Result<()> {
+//     let stops = stops(_client, db, trainNr).await;
+//     let abbrevs = stops.stops.iter().map(|e| abbrev(db, e.to_string()));
+//     let capacity
 
-    let capacity: Option<i32> = Some(0); // SELECT max(capacity) FROM dataset WHERE connectionDate=date and trainNr=trainNumber;
-    let stopsAmount = stops.len();
-    let occupancy = vec![0; stopsAmount - 1];
-    // O(n^2) btw sucami le palle frocio bastardo
-    // No u
-    // specchio riflesso buttati nel cesso + ratio + based
-    for i in 0..stopsAmount {
-        for j in (i + 1)..stopsAmount {
-            for ()
-            occupancy[]
-        }
-    }
-    Ok(())
-}
-
-struct Connections {
-
-}
+//     let capacity: Option<i32> = Some(0); // SELECT max(capacity) FROM dataset WHERE connectionDate=date and trainNr=trainNumber;
+//     let stopsAmount = stops.len();
+//     let occupancy = vec![0; stopsAmount - 1];
+//     // O(n^2) btw sucami le palle frocio bastardo
+//     // No u
+//     // specchio riflesso buttati nel cesso + ratio + based
+//     for i in 0..stopsAmount {
+//         for j in (i + 1)..stopsAmount {
+//             for ()
+//             occupancy[]
+//         }
+//     }
+//     Ok(())
+// }
 
 #[derive(derive_more::From, derive_more::Into, Serialize, Deserialize)]
 struct DateTimeUtc(DateTime<Utc>);
@@ -195,23 +209,68 @@ impl Deref for DateTimeUtc {
 
 impl<'f> FromFormField<'f> for DateTimeUtc {}
 
+trait ToStatus {
+    fn st(&self) -> status::BadRequest<String>;
+}
+
+impl ToStatus for anyhow::Error {
+    fn st(&self) -> status::BadRequest<String> {
+        status::BadRequest(Some(self.to_string()))
+    }
+}
+
+#[derive(Serialize)]
+struct FConnections {
+    connections: Vec<FConnection>,
+}
+
+#[derive(Serialize)]
+struct FConnection {
+    score: f32,
+    connection: Connection,
+}
+
 // Get connections for the given addresses
 #[get("/connections?<from>&<to>&<datetime>&<is_arrival_time>")]
-async fn connections(db: &State<PgPool>, client: &State<Client>, from: String, to: String, datetime: DateTimeUtc, is_arrival_time: bool) -> Json<Connections> {
+async fn connections(
+    db: &State<PgPool>,
+    client: &State<Client>,
+    from: String,
+    to: String,
+    datetime: DateTimeUtc,
+    is_arrival_time: bool,
+) -> Result<Json<FConnections>, status::BadRequest<String>> {
     // We assume that bike=true since it's the website for bicycles
-    
+
     let date = Some(datetime.format("%Y-%m-%d").to_string());
     let time = Some(datetime.format("%H-%M-%S").to_string());
-    let req = ConnectionRequest { from, to, date, time, is_arrival_time, bike: true, ..Default::default() };
-    
-    let res = client.get(CONNECTIONS).query(req).send().await.unwrap();
-    let cr: ConnectionResponse = res.json().await.unwrap();
-    
-    // Try to sort connections based on bike places availability
-    let algorithm = |a| 1.0;
+    let req = ConnectionRequest {
+        from,
+        to,
+        date,
+        time,
+        is_arrival_time: Some(is_arrival_time),
+        bike: Some(true),
+        ..Default::default()
+    };
 
-    cr.
-    Json()
+    let res = client.get(CONNECTIONS).query(&req).send().await.unwrap();
+    let cr: ConnectionResponse = res.json().await.unwrap();
+
+    // Try to sort connections based on bike places availability
+    //let algorithm = |a| 1.0;
+
+    Ok(Json(FConnections {
+        connections: cr
+            .connections
+            .into_iter()
+            .take(5)
+            .map(|c| FConnection {
+                score: 1.0,
+                connection: c,
+            })
+            .collect(),
+    }))
 }
 
 #[rocket::main]
