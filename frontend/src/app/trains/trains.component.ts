@@ -5,6 +5,7 @@ interface Connection {
   name: string;
   description: string;
   icon?: string;
+  occupation: "none" | "low" | "medium" | "high";
 }
 
 @Component({
@@ -17,15 +18,18 @@ export class TrainsComponent implements OnInit {
     {
       name: "lol",
       description: "Ciufciuf",
-      icon: "kom:train"
+      icon: "kom:train",
+      occupation: "low"
     },
     {
       name: "1",
-      description: "Ciufciuf1"
+      description: "Ciufciuf1",
+      occupation:"low"
     },
     {
       name: "2",
-      description: "Ciufciuf2"
+      description: "Ciufciuf2",
+      occupation:"none"
     },
   ]
 

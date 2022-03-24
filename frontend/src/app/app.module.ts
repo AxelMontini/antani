@@ -16,7 +16,8 @@ import { AnswerComponent } from './answer/answer.component';
 import { SbbModule } from './sbb.module';
 import { RequestAnswerComponentComponent } from './request-answer-component/request-answer-component.component';
 import { MeteoComponent } from './meteo/meteo.component';
-import { TrainsComponent } from './trains/trains.component';@NgModule({
+import { TrainsComponent } from './trains/trains.component';
+import { StationsComponent } from './stations/stations.component';@NgModule({
   declarations: [
     AppComponent,
     DescriptionComponent,
@@ -25,6 +26,7 @@ import { TrainsComponent } from './trains/trains.component';@NgModule({
     RequestAnswerComponentComponent,
     MeteoComponent,
     TrainsComponent,
+    StationsComponent,
   ],
   imports: [
     FormsModule,

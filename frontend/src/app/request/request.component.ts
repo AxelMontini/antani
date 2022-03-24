@@ -2,15 +2,20 @@ import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { FormsModule, FormControl, Validators, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormsModule,
+  FormControl,
+  Validators,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { AnswerComponent } from '../answer/answer.component';
 
 @Component({
   selector: 'app-request',
   templateUrl: './request.component.html',
-  styleUrls: ['./request.component.scss']
+  styleUrls: ['./request.component.scss'],
 })
-export class RequestComponent implements OnInit  {
+export class RequestComponent implements OnInit {
   date: FormControl = new FormControl(new Date(), [Validators.required]);
   ret: FormControl = new FormControl('', [Validators.required]);
   dep: FormControl = new FormControl('', [Validators.required]);
@@ -19,7 +24,7 @@ export class RequestComponent implements OnInit  {
   from: FormControl = new FormControl('', [Validators.required]);
   to: FormControl = new FormControl('', [Validators.required]);
 
-  options: string[] = [
+  defaultOptions: string[] = [
     'Zurich',
     'Bern',
     'Basel',
@@ -29,13 +34,26 @@ export class RequestComponent implements OnInit  {
     'Lugano',
     'Thun',
   ];
-  
-  ngOnInit() {
+
+  optionsFrom: string[] = this.defaultOptions;
+  optionsTo: string[] = this.defaultOptions;
+
+  ngOnInit() {}
+
+  autoCompleteFrom() {
+    if (this.from.value != '')
+      fetch(`/api/stations/${this.from.value}`)
+        .then((r) => r.json())
+        .then((r) => (this.optionsFrom = r['stations']));
+    else this.optionsFrom = this.defaultOptions;
   }
-  
-  autoComplete() {
-    console.log(this.from.value);
-    if(this.from.value!="") fetch(`/api/stations/${this.from.value}`).then(r => r.json()).then((r) => this.options = r['stations']);
+
+  autoCompleteTo() {
+    if (this.to.value != '')
+      fetch(`/api/stations/${this.to.value}`)
+        .then((r) => r.json())
+        .then((r) => (this.optionsTo = r['stations']));
+    else this.optionsTo = this.defaultOptions;
   }
 
   // End
@@ -45,7 +63,7 @@ export class RequestComponent implements OnInit  {
   minDate = new Date();
 
   inputFormControl = new FormControl();
-  constructor() { }
+  constructor() {}
 
   /* Send info so that answer component knows that request has been submitted */
   message: boolean = true;
@@ -53,7 +71,7 @@ export class RequestComponent implements OnInit  {
   @Output() messageEvent = new EventEmitter<boolean>();
 
   sendMessage() {
-    this.messageEvent.emit(this.message)
+    this.messageEvent.emit(this.message);
   }
   /*   End of sending */
 
@@ -77,22 +95,18 @@ export class RequestComponent implements OnInit  {
     return new DateTime(this.date.value, this.ret_time, this.dep_datetime);
   }
 
-
   submit(): void {
     console.log(this.from.value);
-    if(!this.time_invalid) {
-      
+    if (!this.time_invalid) {
       console.log(this.dep_datetime);
       /* Send to answer module */
-      this.sendMessage()
+      this.sendMessage();
       /* */
     }
-
   }
 }
 
 class Time {
-
   hour_invalid: boolean = false;
   minute_invalid: boolean = false;
   invalid: boolean = false;
@@ -100,22 +114,23 @@ class Time {
   hour: number;
   minute: number;
 
-  constructor(time_str :string) {
-    let time = time_str.split(":");
+  constructor(time_str: string) {
+    let time = time_str.split(':');
     this.hour = parseInt(time[0]);
-    if(isNaN(this.hour) || this.hour<0 || this.hour>23) this.hour_invalid = true;
+    if (isNaN(this.hour) || this.hour < 0 || this.hour > 23)
+      this.hour_invalid = true;
     this.minute = parseInt(time[1]);
-    if(isNaN(this.minute) || this.minute<0 || this.minute>59) this.minute_invalid = true;
-    this.invalid = (this.hour_invalid || this.minute_invalid) && time_str!="";
+    if (isNaN(this.minute) || this.minute < 0 || this.minute > 59)
+      this.minute_invalid = true;
+    this.invalid = (this.hour_invalid || this.minute_invalid) && time_str != '';
   }
 }
 
 class DateTime extends Date {
   past: boolean;
   constructor(date: Date, time: Time, ref: Date) {
-    super(date)
-    this.setHours(time.hour,time.minute,0);
+    super(date);
+    this.setHours(time.hour, time.minute, 0);
     this.past = +this < +ref;
   }
 }
-
