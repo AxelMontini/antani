@@ -1,23 +1,34 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+
+import { HttpClientModule } from '@angular/common/http';
+
+
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { SbbButtonModule } from '@sbb-esta/angular/button';
-import { SbbCheckboxModule } from '@sbb-esta/angular/checkbox';
+import { DescriptionComponent } from './description/description.component';
+import { RequestComponent } from './request/request.component';
+import { AnswerComponent } from './answer/answer.component';
 
-@NgModule({
+import { SbbModule } from './sbb.module';@NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    DescriptionComponent,
+    RequestComponent,
+    AnswerComponent,
   ],
   imports: [
+    FormsModule,
+    ReactiveFormsModule,
+    HttpClientModule,
     BrowserModule,
     AppRoutingModule,
     BrowserAnimationsModule,
-    SbbButtonModule,
-    SbbCheckboxModule,
-  ],
+    SbbModule,
+    ],
   providers: [],
   bootstrap: [AppComponent]
 })
