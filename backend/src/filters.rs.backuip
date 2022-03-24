@@ -1,0 +1,25 @@
+use reqwest::Client;
+use sqlx::PgPool;
+use warp::{Filter, filters};
+
+use crate::handlers;
+
+type Db = PgPool;
+
+pub fn routes(
+    db: &Db,
+    client: &Client,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+}
+
+fn with_db(db: &Db) -> impl Filter<Extract = (&Db,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || db)
+}
+
+fn with_client(client: &Client) -> impl Filter<Extract = (&Client,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || client)
+}
+
+pub fn connections(db: &PgPool, client: &Client) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path("/connections").and(warp::get()).and(with_db(db)).and(with_client(client)).and(filters::query::query()).and_then(handlers::connections)
+}

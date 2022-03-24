@@ -161,6 +161,7 @@ dependencies = [
  "reqwest",
  "rocket",
  "serde",
+ "serde_json",
  "sqlx",
  "thiserror",
 ]
@@ -1830,6 +1831,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "bytes",
+ "chrono",
  "crc",
  "crossbeam-queue",
  "dirs",
