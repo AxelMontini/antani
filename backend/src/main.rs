@@ -333,7 +333,7 @@ async fn main() -> anyhow::Result<()> {
     rocket::build()
         .manage(client)
         .manage(pool)
-        .mount("/", routes![locations, stations, stops, abbrev])
+        .mount("/", routes![locations, stations, stops, abbrev, capacity, connections, coordinates, weather])
         .launch()
         .await
         .context("rocket error")
