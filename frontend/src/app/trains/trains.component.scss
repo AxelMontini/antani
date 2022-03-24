@@ -2,16 +2,30 @@
   padding: 10px;
 }
 
+:host .header {
+  padding: 10px;
+  font-size: 11px;
+  color: grey;
+  display: grid;
+  width: 100%;
+  grid-template-columns: 30% 20% 20% 10% 20%;
+}
+
 :host .connection-header-content {
-  font-size: 20px;
+  font-size: 15px;
   margin: 0;
   display: grid;
   width: 100%;
-  height: 100%;
   grid-template-columns: 30% 20% 20% 10% 20%;
   grid-template-areas:
     "name duration changes occupation action"
     "time";
+}
+
+:host .connection-header-content .time {
+  grid-area: "time";
+  font-size: 13px;
+  font-weight: bolder;
 }
 
 :host .connection-header-content .time {

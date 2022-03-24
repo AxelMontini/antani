@@ -1,9 +1,9 @@
 <form class ="sbb-form-group form-container">
 	<div class="from-to-container">
-		<sbb-form-field label="From" style="grid-area:left;">
+		<sbb-form-field label="From">
 			<input sbbInput sbbInput [formControl]="from" [sbbAutocomplete]="auto"/>
 		</sbb-form-field>
-		<sbb-form-field label="To" style="grid-area:right;">
+		<sbb-form-field label="To">
 			<input sbbInput sbbInput [formControl]="to" [sbbAutocomplete]="auto"/>
 		</sbb-form-field>
 	</div>
@@ -11,13 +11,11 @@
 			<sbb-option *ngFor="let option of options" [value]="option">{{ option }}</sbb-option>
 		</sbb-autocomplete>
 	<div class="date-time-container">
-		<div>
-			<sbb-form-field label="Date">
-				<sbb-datepicker arrows>
-				<input sbbInput sbbDateInput [formControl]="date" [min]="minDate"/>
-				</sbb-datepicker>
-			</sbb-form-field>
-		</div>
+		<sbb-form-field label="Date">
+			<sbb-datepicker arrows>
+			<input sbbInput sbbDateInput [formControl]="date" [min]="minDate"/>
+			</sbb-datepicker>
+		</sbb-form-field>
 		<div class="time-container">
 			<sbb-form-field label="Departure" class="dep">
 				<input sbbInput sbbTimeInput [formControl]="dep" />

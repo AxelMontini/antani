@@ -1,26 +1,28 @@
-:host .date input {
-    max-width: 100%;
+
+sbb-form-field, input {
+    display: flex;
 }
 
-:host .from-to-container {
-    display: flex;
-    flex-wrap: nowrap;
-    justify-content: space-between;
-    min-width: 70%;
-    max-width: 80%;
+sbb-form-field {
+    width: auto !important;
+    margin-right: 20px;
 }
 
-:host .date-time-container {
+:host .date-time-container, .submit-container, .form-container, .from-to-container {
     display: flex;
     flex-wrap: nowrap;
-    justify-content: space-between;
+    justify-content: flex-start;
+}
+
+:host .form-container {
+    display: flex;
+    flex-direction: column;
 }
 
 :host .time-container {
     display: flex;
     flex-wrap: nowrap;
     justify-content: space-between;
-    max-width: 62%;
 }
 
 @media screen and (max-width: 768px) {
@@ -31,19 +33,4 @@
     :host .date-time-container {
         flex-wrap: wrap;
     }
-}
-
-:host .submit-container {
-    display: flex;
-    flex-wrap: nowrap;
-}
-
-:host .form-container {
-    display: grid;
-    grid-template-columns: 50% 50%;
-    grid-template-rows: auto;
-    grid-template-areas:
-        "left right"
-        "left2 right2"
-        "submit submit";
 }
