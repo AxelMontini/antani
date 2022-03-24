@@ -4,21 +4,39 @@ use rocket::local::asynchronous::LocalRequest;
 use serde::{Deserialize, Serialize};
 
 const PREFIX: &str = "http://transport.opendata.ch/v1";
-const LOCATIONS: &str = "http://transport.opendata.ch/v1/locations";
-const CONNECTIONS: &str = "http://transport.opendata.ch/v1/connections";
-const STATIONBOARD: &str = "http://transport.opendata.ch/v1/stationboard";
+pub const LOCATIONS: &str = "http://transport.opendata.ch/v1/locations";
+pub const CONNECTIONS: &str = "http://transport.opendata.ch/v1/connections";
+pub const STATIONBOARD: &str = "http://transport.opendata.ch/v1/stationboard";
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-enum LocationType {
+pub enum LocationType {
     Station,
     Poi,
     Address,
     Refine,
 }
 
+impl TryFrom<&str> for LocationType {
+    type Error = LocationTypeError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "station" => Ok(Self::Station),
+            "poi" => Ok(Self::Poi),
+            "refine" => Ok(Self::Refine),
+            "address" => Ok(Self::Address),
+            o => Err(LocationTypeError(o.into())),
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("Invalid LocationTypeError: \"{0}\"")]
+pub struct LocationTypeError(String);
+
 #[derive(Debug, Serialize, Deserialize)]
-struct Location {
+pub struct Location {
     id: String,
     #[serde(rename = "type")]
     ty: Option<LocationType>,
@@ -29,7 +47,7 @@ struct Location {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Coordinate {
+pub struct Coordinate {
     #[serde(rename = "type")]
     ty: String,
     /// latitude
@@ -39,31 +57,49 @@ struct Coordinate {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct LocationResponse {
+pub struct LocationResponse {
     stations: Vec<Location>,
 }
 
 #[derive(Debug, Default, Serialize)]
-struct LocationRequest {
+pub struct LocationRequest {
     /// Location to search for
-    query: Option<String>,
-    x: Option<f32>,
-    y: Option<f32>,
+    pub query: Option<String>,
+    pub x: Option<f32>,
+    pub y: Option<f32>,
     #[serde(rename = "type")]
-    ty: Option<LocationRequestType>,
+    pub ty: Option<LocationRequestType>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-enum LocationRequestType {
+pub enum LocationRequestType {
     All,
     Station,
     Poi,
     Address,
 }
 
+#[derive(thiserror::Error, Debug)]
+#[error("Invalid LocationRequestTypeError: \"{0}\"")]
+pub struct LocationRequestTypeError(String);
+
+impl TryFrom<&str> for LocationRequestType {
+    type Error = LocationRequestTypeError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "all" => Ok(Self::All),
+            "station" => Ok(Self::Station),
+            "poi" => Ok(Self::Poi),
+            "address" => Ok(Self::Address),
+            e => Err(LocationRequestTypeError(e.into())),
+        }
+    }
+}
+
 #[derive(Debug, Default, Serialize)]
-struct ConnectionRequest {
+pub struct ConnectionRequest {
     from: String,
     to: String,
     via: Option<Vec<String>>,
@@ -85,7 +121,7 @@ struct ConnectionRequest {
 
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(into = "String")]
-enum TransportationType {
+pub enum TransportationType {
     Train,
     Tram,
     Ship,
@@ -107,12 +143,12 @@ impl Into<String> for TransportationType {
 }
 
 #[derive(Deserialize, Debug)]
-struct ConnectionResult {
+pub struct ConnectionResult {
     connections: Vec<Connection>,
 }
 
 #[derive(Deserialize, Debug)]
-struct Connection {
+pub struct Connection {
     from: Checkpoint,
     to: Checkpoint,
     duration: String,
@@ -124,7 +160,7 @@ struct Connection {
 }
 
 #[derive(Deserialize, Debug)]
-struct Section {
+pub struct Section {
     journey: Option<Journey>,
     walk: Option<f32>,
     departure: Checkpoint,
@@ -132,7 +168,7 @@ struct Section {
 }
 
 #[derive(Deserialize, Debug)]
-struct Journey {
+pub struct Journey {
     name: String,
     category: String,
     categoryCode: u32,
@@ -146,13 +182,13 @@ struct Journey {
 
 /// What is this for???
 #[derive(Deserialize, Debug)]
-struct Service {
+pub struct Service {
     regular: String,
     irregular: String,
 }
 
 #[derive(Deserialize, Debug)]
-struct Checkpoint {
+pub struct Checkpoint {
     station: Location,
     arrival: NaiveTime,
     departure: Option<NaiveTime>,
@@ -162,7 +198,7 @@ struct Checkpoint {
 }
 
 #[derive(Deserialize, Debug)]
-struct Prognosis {
+pub struct Prognosis {
     arrival: DateTime<Utc>,
     departure: Option<DateTime<Utc>>,
     platform: u32,

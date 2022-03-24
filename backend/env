@@ -1,0 +1,2 @@
+#!/bin/sh
+export DATABASE_URL=postgres://chad:thundercockftw@lanciapini.axelmontini.dev:32100/postgresdb
