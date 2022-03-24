@@ -307,7 +307,7 @@ async fn weather(client: &State<Client>, db: &State<PgPool>, date: String, stati
             .unwrap()
             .as_f64()
             .unwrap();
-        acc.push(Data{parameter: param, value});
+        acc.push(Data{parameter: param.to_string(), value});
     }
     Json(MeteoData { data: acc })
 }

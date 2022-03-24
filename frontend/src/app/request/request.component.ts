@@ -14,7 +14,8 @@ export type Message = {
   showLoading: boolean,
   from: string,
   to:string,
-  datetime: string
+  dateTimeDep: string
+  dateTimeArr: string
 }
 
 @Component({
@@ -73,12 +74,7 @@ export class RequestComponent implements OnInit {
   constructor() {}
 
   /* Send info so that answer component knows that request has been submitted */
-  message: Message = {
-    showLoading: true,
-    from: this.from.value,
-    to: this.to.value,
-    datetime: this.date.value.toISOString(),
-  };
+  
   @Output() messageEvent = new EventEmitter<Message>();
   /*   End of sending */
 
@@ -105,7 +101,14 @@ export class RequestComponent implements OnInit {
   submit(): void {
     if(this.dep_time.valid && this.ret_time.valid && this.from.valid && this.to.valid && this.dep_datetime.valid && this.ret_datetime.valid) {
       /* Send to answer module */
-      this.messageEvent.emit(this.message);
+      let message: Message = {
+        showLoading: true,
+        from: this.from.value,
+        to: this.to.value,
+        dateTimeDep: this.dep_datetime.toISOString(),
+        dateTimeArr: this.ret_datetime.toISOString(),
+      };
+      this.messageEvent.emit(message);
       /* */
     }
   }

@@ -17,13 +17,14 @@ export class RequestAnswerComponentComponent implements OnInit {
     showLoading: false,
     from: '',
     to:'',
-    datetime: ''
+    dateTimeDep: '',
+    dateTimeArr: ''
   }
 
   receiveMessage($event :any) {
-    this.message = $event
+    this.message = $event;
   }
-
+  
   ngOnInit(): void {
   }
 
