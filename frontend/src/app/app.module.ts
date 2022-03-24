@@ -13,12 +13,18 @@ import { DescriptionComponent } from './description/description.component';
 import { RequestComponent } from './request/request.component';
 import { AnswerComponent } from './answer/answer.component';
 
-import { SbbModule } from './sbb.module';@NgModule({
+import { SbbModule } from './sbb.module';
+import { RequestAnswerComponentComponent } from './request-answer-component/request-answer-component.component';
+import { MeteoComponent } from './meteo/meteo.component';
+import { TrainsComponent } from './trains/trains.component';@NgModule({
   declarations: [
     AppComponent,
     DescriptionComponent,
     RequestComponent,
     AnswerComponent,
+    RequestAnswerComponentComponent,
+    MeteoComponent,
+    TrainsComponent,
   ],
   imports: [
     FormsModule,

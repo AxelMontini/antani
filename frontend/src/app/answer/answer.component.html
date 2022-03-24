@@ -1,1 +1,5 @@
-
+<sbb-loading mode="small" aria-valuetext="Loading, please wait" *ngIf="showLoading"></sbb-loading>
+<div class="meteo">
+    <app-meteo *ngIf="showMeteo"></app-meteo>
+</div>
+<app-trains *ngIf="showTrains"></app-trains>

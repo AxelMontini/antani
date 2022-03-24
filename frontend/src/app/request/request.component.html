@@ -1,13 +1,41 @@
-<div class="request">
-	<form class ="sbb-form-group">
-	<sbb-form-field label="Date">
-        <sbb-datepicker arrows>
-          <input sbbInput sbbDateInput [formControl]="date" />
-        </sbb-datepicker>
-    </sbb-form-field>
-	<sbb-form-field label="Time">
-		<input sbbInput sbbTimeInput />
-	</sbb-form-field>
-    <button sbb-button>Submit</button>
-	</form>  
-</div>
+
+<form class ="sbb-form-group form-container">
+	<div class="from">
+		<sbb-form-field label="From">
+			<sbb-datepicker arrows>
+			<input sbbInput sbbInput [formControl]="from">
+			</sbb-datepicker>
+		</sbb-form-field>
+	</div>
+	<div class="to">
+		<sbb-form-field label="To">
+			<sbb-datepicker arrows>
+			<input sbbInput sbbInput [formControl]="to"/>
+			</sbb-datepicker>
+		</sbb-form-field>
+	</div>
+	<div class="date">
+		<sbb-form-field label="Date">
+			<sbb-datepicker arrows>
+			<input sbbInput sbbDateInput [formControl]="date" [min]="minDate"/>
+			</sbb-datepicker>
+		</sbb-form-field>
+	</div>
+	<div class="dep">
+		<sbb-form-field label="Departure">
+			<input sbbInput sbbTimeInput [formControl]="dep" />
+		</sbb-form-field>
+	</div>
+	<div class="ret">
+		<sbb-form-field label="Return">
+			<input sbbInput sbbTimeInput [formControl]="ret" />
+		</sbb-form-field>
+	</div>
+
+	<sbb-error *ngIf="dep_time.invalid">Invalid departure time.</sbb-error>
+	<sbb-error *ngIf="ret_time.invalid">Invalid return time.</sbb-error>
+	<sbb-error *ngIf="dep_datetime.past">Departure time is in the past.</sbb-error>
+	<sbb-error *ngIf="ret_datetime.past">Return must be after departure.</sbb-error>
+	<!-- <sbb-error *ngIf="datetime_past">Time is in the past.</sbb-error> -->
+	<button sbb-button (click)="submit()" class="submit" style="max-width:100% !important;margin-top: -1vh;">Submit</button>
+</form>
