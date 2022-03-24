@@ -294,7 +294,7 @@ async fn weather(client: &State<Client>, db: &State<PgPool>, date: String, stati
     for i in 0..3 {
         let data = j.get(i).unwrap();
         let param = data.get("parameter").unwrap().as_str().unwrap();
-        let value = data
+        let value = data // TODO: handle errors like a human being
             .get("coordinates")
             .unwrap()
             .get(0)
@@ -325,13 +325,14 @@ struct Data {
 
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
-
+    let weather_id = std::env::var("WEATHER_ID");
+    let weather_secret = std::env::var("WEATHER_SECRET");
     let db_uri = std::env::var("DB_URI").context("No DB_URI specified")?;
 
 
     let client = reqwest::Client::new();
     let pool = PgPoolOptions::new()
-        .connect() // TODO: remove s
+        .connect(&db_uri)
         .await?;
 
     rocket::build()
