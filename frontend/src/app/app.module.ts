@@ -1,23 +1,40 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+
+import { HttpClientModule } from '@angular/common/http';
+
+
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { SbbButtonModule } from '@sbb-esta/angular/button';
-import { SbbCheckboxModule } from '@sbb-esta/angular/checkbox';
+import { RequestComponent } from './request/request.component';
+import { AnswerComponent } from './answer/answer.component';
 
-@NgModule({
+import { SbbModule } from './sbb.module';
+import { RequestAnswerComponentComponent } from './request-answer-component/request-answer-component.component';
+import { MeteoComponent } from './meteo/meteo.component';
+import { TrainsComponent } from './trains/trains.component';
+import { StationsComponent } from './stations/stations.component';@NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    RequestComponent,
+    AnswerComponent,
+    RequestAnswerComponentComponent,
+    MeteoComponent,
+    TrainsComponent,
+    StationsComponent,
   ],
   imports: [
+    FormsModule,
+    ReactiveFormsModule,
+    HttpClientModule,
     BrowserModule,
     AppRoutingModule,
     BrowserAnimationsModule,
-    SbbButtonModule,
-    SbbCheckboxModule,
-  ],
+    SbbModule,
+    ],
   providers: [],
   bootstrap: [AppComponent]
 })
