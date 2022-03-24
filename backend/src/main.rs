@@ -1,4 +1,4 @@
-use std::{ops::Deref, str::FromStr};
+use std::{ops::Deref};
 
 use anyhow::Context;
 use api::{
@@ -9,7 +9,7 @@ use futures::{StreamExt, TryStreamExt};
 use reqwest::Client;
 use rocket::{
     form::FromFormField,
-    get, launch,
+    get,
     response::status,
     routes,
     serde::{json::Json, Deserialize, Serialize},
@@ -126,7 +126,7 @@ pub async fn stops(
     Ok(Json(Stops { stops }))
 }
 
-pub async fn get_stops(client: &Client, db: &PgPool, trainNr: i32) -> anyhow::Result<Vec<String>> {
+pub async fn get_stops(client: &Client, _db: &PgPool, trainNr: i32) -> anyhow::Result<Vec<String>> {
     let params = [
         ("dataset", "ist-daten-sbb"),
         ("q", &trainNr.to_string()),
@@ -151,7 +151,7 @@ async fn abbrev(
 ) -> Result<String, status::BadRequest<&'static str>> {
     get_abbrev(db, &station)
         .await
-        .map_err(|e| status::BadRequest(Some("database error")))?
+        .map_err(|_e| status::BadRequest(Some("database error")))?
         .ok_or(status::BadRequest(Some("station does not exist")))
 }
 
@@ -249,7 +249,7 @@ struct FConnection {
 // Get connections for the given addresses
 #[get("/connections?<from>&<to>&<datetime>&<is_arrival_time>")]
 async fn connections(
-    db: &State<PgPool>,
+    _db: &State<PgPool>,
     client: &State<Client>,
     from: String,
     to: String,
@@ -478,8 +478,8 @@ async fn gen(opts: Opts) -> anyhow::Result<()> {
 }
 
 async fn start(opts: Opts) -> anyhow::Result<()> {
-    let weather_id = std::env::var("WEATHER_ID");
-    let weather_secret = std::env::var("WEATHER_SECRET");
+    let _weather_id = std::env::var("WEATHER_ID");
+    let _weather_secret = std::env::var("WEATHER_SECRET");
     let db_uri = opts.database_url;
 
     let client = reqwest::Client::new();

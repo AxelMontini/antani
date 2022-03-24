@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
-use chrono::{Date, DateTime, FixedOffset};
-use reqwest::Url;
-use rocket::local::asynchronous::LocalRequest;
+use chrono::{DateTime, FixedOffset};
+
+
 use serde::{Deserialize, Serialize};
 
 const PREFIX: &str = "http://transport.opendata.ch/v1";
@@ -251,7 +251,7 @@ mod tests {
 
         assert!(resp.status().is_success());
 
-        let cr: ConnectionResponse = resp.json().await.unwrap();
+        let _cr: ConnectionResponse = resp.json().await.unwrap();
     }
 
     #[test]
