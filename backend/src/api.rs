@@ -143,7 +143,7 @@ impl Into<String> for TransportationType {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct ConnectionResult {
+pub struct ConnectionResponse {
     connections: Vec<Connection>,
 }
 
@@ -248,6 +248,6 @@ mod tests {
 
         assert!(resp.status().is_success());
 
-        let cr: ConnectionResult = resp.json().await.unwrap();
+        let cr: ConnectionResponse = resp.json().await.unwrap();
     }
 }
