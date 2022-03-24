@@ -4,7 +4,8 @@ use anyhow::Context;
 use api::{
     Connection, ConnectionRequest, ConnectionResponse, LocationRequest, CONNECTIONS, LOCATIONS,
 };
-use chrono::{DateTime, NaiveDate, Utc, FixedOffset};
+use chrono::{DateTime, FixedOffset, NaiveDate, Utc};
+use futures::{StreamExt, TryStreamExt};
 use reqwest::Client;
 use rocket::{
     form::FromFormField,
@@ -12,10 +13,11 @@ use rocket::{
     response::status,
     routes,
     serde::{json::Json, Deserialize, Serialize},
-    State,
+    Either, State,
 };
 
 use sqlx::{postgres::PgPoolOptions, PgPool};
+use structopt::StructOpt;
 
 use crate::api::LocationRequestType;
 
@@ -113,34 +115,53 @@ struct Fields {
 
 /// get all the stops of train number <trainNr>: 324 -> ["Chiasso", ...]
 #[get("/stops?<trainNr>")]
-pub async fn stops(client: &State<Client>, db: &State<PgPool>, trainNr: i32) -> Json<Stops> {
+pub async fn stops(
+    client: &State<Client>,
+    db: &State<PgPool>,
+    trainNr: i32,
+) -> Result<Json<Stops>, status::BadRequest<()>> {
+    let stops = get_stops(client, db, trainNr)
+        .await
+        .map_err(|_| status::BadRequest(None))?;
+    Ok(Json(Stops { stops }))
+}
+
+pub async fn get_stops(client: &Client, db: &PgPool, trainNr: i32) -> anyhow::Result<Vec<String>> {
     let params = [
         ("dataset", "ist-daten-sbb"),
         ("q", &trainNr.to_string()),
         ("sort", "ab_prognose"),
     ];
-    let res = client
+
+    Ok(client
         .get("https://data.sbb.ch/api/records/1.0/search/")
         .query(&params)
         .send()
-        .await
-        .unwrap()
+        .await?
         .json::<Response>()
-        .await
-        .unwrap()
-        .get_stations();
-    Json(Stops { stops: res })
+        .await?
+        .get_stations())
 }
 
 /// get abbreviation of <station>: "Zurich HB" -> "ZUE"
 #[get("/abbrev?<station>")]
-async fn abbrev(db: &State<PgPool>, station: String) -> String {
-    let query = sqlx::query!(
-        r#"SELECT abbrev FROM stations WHERE name=$1 or locality=$1"#,
-        station
-    );
-    let response = query.fetch_one(db.deref()).await.unwrap();
-    response.abbrev.unwrap()
+async fn abbrev(
+    db: &State<PgPool>,
+    station: &str,
+) -> Result<String, status::BadRequest<&'static str>> {
+    get_abbrev(db, &station)
+        .await
+        .map_err(|e| status::BadRequest(Some("database error")))?
+        .ok_or(status::BadRequest(Some("station does not exist")))
+}
+
+async fn get_abbrev(db: &PgPool, station: &str) -> anyhow::Result<Option<String>> {
+    let query = sqlx::query!(r#"SELECT abbrev FROM stations WHERE name=$1"#, station);
+    let response = query
+        .fetch_one(db)
+        .await
+        .context("fetch abbrev of station")?;
+    Ok(response.abbrev)
 }
 
 #[derive(Serialize)]
@@ -156,24 +177,38 @@ async fn capacity(
     db: &State<PgPool>,
     date: String,
     trainNr: i32,
-) -> Result<Json<Capacity>, status::BadRequest<String>> {
+) -> Result<Json<Option<Capacity>>, status::BadRequest<String>> {
     // TODO: Check if date should be used as Swiss Timezone or Utc in the database
     let date = date
-        .parse::<DateTime<Utc>>()
-        .map_err(|e| status::BadRequest(Some(e.to_string())))?
-        .date()
-        .naive_local();
+        .parse::<NaiveDate>()
+        .map_err(|e| status::BadRequest(Some(e.to_string())))?;
 
+    let cap = get_capacity(db, date, trainNr)
+        .await
+        .map_err(|e| status::BadRequest(Some(e.to_string())))?;
+
+    Ok(Json(cap))
+}
+
+async fn get_capacity(
+    db: &PgPool,
+    date: NaiveDate,
+    trainNr: i32,
+) -> anyhow::Result<Option<Capacity>> {
     let query = sqlx::query!(
         r#"SELECT max(capacity) FROM dataset WHERE connectionDate=$1 and trainNr=$2"#,
         date,
         trainNr
     );
-    let response = query.fetch_one(db.deref()).await.unwrap();
-    Ok(Json(Capacity {
+    let response = query
+        .fetch_one(db.deref())
+        .await
+        .context("fetching train capacity")?;
+
+    Ok(response.max.map(|max| Capacity {
         date,
         trainNr,
-        capacity: response.max.unwrap(),
+        capacity: max,
     }))
 }
 
@@ -279,7 +314,12 @@ async fn coordinates(db: &State<PgPool>, station: String) -> Json<Coordinates> {
 
 /// get weather information for the <date> at the train <station>: date=2022-10-22T16:16:16Z&station=Chiasso -> [temperature, rainfall, weather]
 #[get("/weather?<date>&<station>")]
-async fn weather(client: &State<Client>, db: &State<PgPool>, date: String, station: String) -> Json<MeteoData> {
+async fn weather(
+    client: &State<Client>,
+    db: &State<PgPool>,
+    date: String,
+    station: String,
+) -> Json<MeteoData> {
     let token = ""; // TODO: implement OAuth2
     let url = "https://weather.api.sbb.ch:443";
     let params = "t_2m:C,precip_1h:mm,weather_symbol_1h:idx";
@@ -310,7 +350,10 @@ async fn weather(client: &State<Client>, db: &State<PgPool>, date: String, stati
             .unwrap()
             .as_f64()
             .unwrap();
-        acc.push(Data{parameter: param.to_string(), value});
+        acc.push(Data {
+            parameter: param.to_string(),
+            value,
+        });
     }
     Json(MeteoData { data: acc })
 }
@@ -326,34 +369,138 @@ struct Data {
     value: f64,
 }
 
+async fn fill_occupancy(client: &Client, db: &PgPool) -> anyhow::Result<()> {
+    let all_travels = sqlx::query!(
+        "(SELECT connectionDate, trainNr FROM Dataset GROUP BY connectionDate, trainNr) EXCEPT (SELECT connectionDate, trainNr FROM Occupancy)"
+    );
+    all_travels
+        .fetch_many(db)
+        .map(|r| r.map_err(|e| anyhow::anyhow!(e)))
+        .try_for_each(|e| async {
+            println!("FOR EACH");
+            match e {
+                Either::Right(rec) => {
+                    let trainNr = rec.trainnr.context("No train nr")?;
+                    let date = rec.connectiondate.context("No connection date")?;
 
-#[get("/calc?<trainNr>&<date>")]
-async fn occupancy(client: &State<Client>, db: &State<PgPool>, trainNr: i32, date: String) {
-    let stops = stops(client, db, trainNr).await.0.stops;
-    let abbrevs = futures::future::join_all(stops.iter().map(|e| abbrev(db, e.to_string()))).await;
-    let capacity = capacity(db, date, trainNr).await.unwrap().0.capacity;
+                    let bikes = occupancy(client, db, trainNr, date).await?;
+                    println!(">> TrainNr: {}, date: {}, Bikes: {:?}", trainNr, date, bikes);
+                    Ok(())
+                }
+                o => Err(anyhow::anyhow!("What is going on here {:?}", o)),
+            }
+        })
+        .await?;
 
-    let legsAmount = stops.len() - 1;
+    Ok(())
+}
+
+async fn occupancy(
+    client: &Client,
+    db: &PgPool,
+    trainNr: i32,
+    date: NaiveDate,
+) -> anyhow::Result<Vec<i32>> {
+    let stops = get_stops(client, db, trainNr).await?;
+    let abbrevs = futures::future::join_all(stops.iter().map(|e| get_abbrev(db, e))).await;
+    // let capacity = get_capacity(db, date, trainNr)
+    //     .await?
+    //     .map(|c| c.capacity)
+    //     .unwrap_or(0);
+
+    let legsAmount = stops.len(); // was - 1
     let mut legs = vec![0; legsAmount];
-    
+
+    let postgresDate = date;
+    println!("Select");
+    let query = sqlx::query!("SELECT stationFrom, stationTo, reserved FROM dataset WHERE connectionDate=$1 and trainNr=$2", postgresDate, trainNr);
+    let response = query.fetch_all(db.deref()).await.unwrap();
+    response.iter().for_each(|rec| {
+        println!("Record");
+        let mut flag = false;
+        for (index, s) in abbrevs.iter().enumerate() {
+            match s {
+                Ok(Some(s)) => {
+                    flag |= s == &rec.stationfrom;
+                    if flag {
+                        if s.clone() == rec.stationto {
+                            break;
+                        }
+                        legs[index] += rec.reserved;
+                    }
+                }
+                o => panic!("Wrong thing {:?}", o), //TODO: Do something when this happens
+            }
+        }
+    });
+    legs.pop();
+    println!("{:?}", abbrevs);
+    println!("{:?}", legs);
+    println!("{:?}", response);
+
+    Ok(legs)
+}
+
+#[derive(StructOpt)]
+#[structopt(about = "SBB Bikes server and cli", name = "sbb-bikes")]
+struct Opts {
+    #[structopt(short, long, env)]
+    database_url: String,
+    #[structopt(subcommand)]
+    command: Subcommand,
+}
+
+#[derive(StructOpt)]
+enum Subcommand {
+    /// Start the web server
+    Start {},
+    /// Generate occupancy data
+    Gen {},
 }
 
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
-    let weather_id = std::env::var("WEATHER_ID");
-    let weather_secret = std::env::var("WEATHER_SECRET");
-    let db_uri = std::env::var("DB_URI").context("No DB_URI specified")?;
+    let opts = Opts::from_args();
 
+    match opts.command {
+        Subcommand::Start {} => start(opts).await,
+        Subcommand::Gen {} => gen(opts).await,
+    }
+}
+
+async fn gen(opts: Opts) -> anyhow::Result<()> {
+    let db_uri = opts.database_url;
 
     let client = reqwest::Client::new();
-    let pool = PgPoolOptions::new()
-        .connect(&db_uri)
-        .await?;
+    let pool = PgPoolOptions::new().connect(&db_uri).await?;
+
+    fill_occupancy(&client, &pool).await
+}
+
+async fn start(opts: Opts) -> anyhow::Result<()> {
+    let weather_id = std::env::var("WEATHER_ID");
+    let weather_secret = std::env::var("WEATHER_SECRET");
+    let db_uri = opts.database_url;
+
+    let client = reqwest::Client::new();
+    let pool = PgPoolOptions::new().connect(&db_uri).await?;
 
     rocket::build()
         .manage(client)
         .manage(pool)
-        .mount("/", routes![locations, stations, stops, abbrev, capacity, connections, coordinates, weather])
+        .mount(
+            "/",
+            routes![
+                locations,
+                stations,
+                stops,
+                abbrev,
+                capacity,
+                connections,
+                coordinates,
+                weather
+            ],
+        )
         .launch()
         .await
         .context("rocket error")

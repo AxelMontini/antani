@@ -1,5 +1,5 @@
 -- Add migration script here
-CREATE TABLE dataset (
+CREATE TABLE IF NOT EXISTS Dataset (
     id SERIAL NOT NULL,
     reservationDate DATE NOT NULL,
     reservationTime TIME WITHOUT TIME ZONE,

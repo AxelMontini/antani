@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 use chrono::{Date, DateTime, FixedOffset};
 use reqwest::Url;
 use rocket::local::asynchronous::LocalRequest;
@@ -8,7 +9,8 @@ pub const LOCATIONS: &str = "http://transport.opendata.ch/v1/locations";
 pub const CONNECTIONS: &str = "http://transport.opendata.ch/v1/connections";
 pub const STATIONBOARD: &str = "http://transport.opendata.ch/v1/stationboard";
 
-#[derive(Debug, Serialize, Deserialize)]
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum LocationType {
     Station,
@@ -35,7 +37,7 @@ impl TryFrom<&str> for LocationType {
 #[error("Invalid LocationTypeError: \"{0}\"")]
 pub struct LocationTypeError(String);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Location {
     pub id: String,
     #[serde(rename = "type")]
@@ -46,7 +48,7 @@ pub struct Location {
     pub distance: Option<f32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Coordinate {
     #[serde(rename = "type")]
     pub ty: String,
@@ -142,12 +144,12 @@ impl Into<String> for TransportationType {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, JsonSchema)]
 pub struct ConnectionResponse {
     pub connections: Vec<Connection>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Connection {
     pub from: Checkpoint,
     pub to: Checkpoint,
@@ -159,7 +161,7 @@ pub struct Connection {
     pub sections: Vec<Section>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Section {
     pub journey: Option<Journey>,
     pub walk: Option<f32>,
@@ -167,7 +169,7 @@ pub struct Section {
     pub arrival: Checkpoint,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Journey {
     pub name: String,
     pub category: String,
@@ -181,13 +183,13 @@ pub struct Journey {
 }
 
 /// What is this for???
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Service {
     pub regular: String,
     pub irregular: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Checkpoint {
     pub station: Location,
     pub arrival: Option<DateTime<FixedOffset>>,
@@ -197,7 +199,7 @@ pub struct Checkpoint {
     pub prognosis: Option<Prognosis>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Prognosis {
     pub arrival: Option<DateTime<FixedOffset>>,
     pub departure: Option<DateTime<FixedOffset>>,
@@ -209,6 +211,7 @@ pub struct Prognosis {
 #[cfg(test)]
 mod tests {
     use rocket::tokio;
+    use schemars::schema_for;
 
     use super::*;
 
@@ -249,5 +252,11 @@ mod tests {
         assert!(resp.status().is_success());
 
         let cr: ConnectionResponse = resp.json().await.unwrap();
+    }
+
+    #[test]
+    fn schemas() {
+        let schema = schema_for!(ConnectionResponse);
+        println!("{}", serde_json::to_string_pretty(&schema).unwrap());
     }
 }

@@ -1,5 +1,5 @@
 -- Add migration script here
-CREATE TABLE stations (
+CREATE TABLE IF NOT EXISTS Stations (
     id SERIAL NOT NULL,
     opuic INTEGER NOT NULL,
     name VARCHAR(256) NOT NULL,
