@@ -1,6 +1,8 @@
 import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { RequestComponent } from "../request/request.component";
 import { AnswerComponent } from "../answer/answer.component";
+import { Message } from '../request/request.component';
+
 
 @Component({
   selector: 'app-request-answer-component',
@@ -11,7 +13,12 @@ export class RequestAnswerComponentComponent implements OnInit {
 
   constructor() { }
 
-  message: boolean = false;
+  message: Message = {
+    showLoading: false,
+    from: '',
+    to:'',
+    datetime: ''
+  }
 
   receiveMessage($event :any) {
     this.message = $event
@@ -21,3 +28,5 @@ export class RequestAnswerComponentComponent implements OnInit {
   }
 
 }
+
+

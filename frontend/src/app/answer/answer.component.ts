@@ -1,5 +1,5 @@
 import { Component, OnInit, Input, OnChanges, SimpleChanges } from '@angular/core';
-
+import { Message } from '../request/request.component';
 @Component({
   selector: 'app-answer',
   templateUrl: './answer.component.html',
@@ -16,16 +16,19 @@ export class AnswerComponent implements OnInit, OnChanges {
   }
 
   /* Request handling */
-  @Input() showLoading: boolean = false;
-  @Input() showMeteo: boolean = false;
-  @Input() showTrains: boolean = false;
+  @Input() message: Message = {
+    showLoading: false,
+    from: '',
+    to:'',
+    datetime: ''
+  }
   /* */
+  showMeteo :boolean = false;
+  showTrains :boolean = false;
 
   ngOnChanges(changes: SimpleChanges) {
-    if(this.showLoading) {
-      this.showMeteo = true;
-      this.showTrains = true;
-      this.showLoading = false;
+    if(this.message.showLoading) {
+
     }
   }
 }

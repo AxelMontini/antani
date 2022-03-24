@@ -10,6 +10,13 @@ import {
 } from '@angular/forms';
 import { AnswerComponent } from '../answer/answer.component';
 
+export type Message = {
+  showLoading: boolean,
+  from: string,
+  to:string,
+  datetime: string
+}
+
 @Component({
   selector: 'app-request',
   templateUrl: './request.component.html',
@@ -66,8 +73,13 @@ export class RequestComponent implements OnInit {
   constructor() {}
 
   /* Send info so that answer component knows that request has been submitted */
-  message: boolean = true;
-  @Output() messageEvent = new EventEmitter<boolean>();
+  message: Message = {
+    showLoading: true,
+    from: this.from.value,
+    to: this.to.value,
+    datetime: this.date.value.toISOString(),
+  };
+  @Output() messageEvent = new EventEmitter<Message>();
   /*   End of sending */
 
   get dep_time(): Time {
@@ -91,7 +103,7 @@ export class RequestComponent implements OnInit {
   }
 
   submit(): void {
-    if (!this.time_invalid) {
+    if(this.dep_time.valid && this.ret_time.valid && this.from.valid && this.to.valid && this.dep_datetime.valid && this.ret_datetime.valid) {
       /* Send to answer module */
       this.messageEvent.emit(this.message);
       /* */
@@ -103,6 +115,7 @@ class Time {
   hour_invalid: boolean = false;
   minute_invalid: boolean = false;
   invalid: boolean = false;
+  empty: boolean;
 
   hour: number;
   minute: number;
@@ -116,6 +129,11 @@ class Time {
     if (isNaN(this.minute) || this.minute < 0 || this.minute > 59)
       this.minute_invalid = true;
     this.invalid = (this.hour_invalid || this.minute_invalid) && time_str != '';
+    this.empty = time_str=='';
+  } 
+
+  get valid(): boolean {
+    return !this.empty && !this.invalid;
   }
 }
 
@@ -125,5 +143,9 @@ class DateTime extends Date {
     super(date);
     this.setHours(time.hour, time.minute, 0);
     this.past = +this < +ref;
+  }
+
+  get valid(): boolean {
+    return !this.past;
   }
 }
