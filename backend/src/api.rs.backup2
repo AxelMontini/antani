@@ -1,0 +1,162 @@
+use chrono::{DateTime, Utc};
+use minidom::Element;
+
+const NS: &str = "ojp";
+
+struct Request {
+    timestamp: DateTime<Utc>,
+    requestor_ref: String,
+    request: RequestType,
+}
+
+enum RequestType {
+    TripRequest(TripRequest),
+}
+
+struct TripRequest {
+    dep_arr_time: DepArrTime,
+    origin: Origin,
+    destination: Destination,
+    params: TripRequestParams,
+}
+
+enum DepArrTime {
+    Departure(DateTime<Utc>),
+    Arrival(DateTime<Utc>),
+    None,
+}
+
+struct Origin {
+    place: PlaceRef,
+}
+
+impl Origin {
+    fn to_element(&self) -> Element {
+        let mut s = Element::bare("Origin", NS);
+        s.append_child(self.place.to_element());
+        s
+    }
+}
+
+/// Either a StopPlaceRef or GeoPosition
+enum PlaceRef {
+    StopPlaceRef { name: String, id: u64 },
+    GeoPosition { name: String, lat: f32, lng: f32 },
+}
+
+impl PlaceRef {
+    fn to_element(&self) -> Element {
+        let inner = match self {
+            PlaceRef::StopPlaceRef { name, id } => todo!(),
+            PlaceRef::GeoPosition { name, lat, lng } => {
+                let mut nlng = Element::bare("Longitude", NS);
+                nlng.append_text_node(format!("{}", lng));
+                let mut nlat = Element::bare("Latitude", NS);
+                nlat.append_text_node(format!("{}", lat));
+
+                let mut gp = Element::bare("GeoPosition", NS);
+                gp.append_child(nlng);
+                gp.append_child(nlat);
+                gp
+            }
+        };
+
+        let mut pr = Element::bare("PlaceRef", NS);
+        pr.append_child(inner);
+        pr
+    }
+}
+
+struct Destination {
+    place: PlaceRef,
+}
+
+impl Destination {
+    fn to_element(&self) -> Element {
+        let mut s = Element::bare("Destination", NS);
+        s.append_child(self.place.to_element());
+        s
+    }
+}
+
+struct TripRequestParams {}
+
+impl Request {
+    fn to_element(&self) -> Element {
+        let inner = match &self.request {
+            RequestType::TripRequest(TripRequest {
+                dep_arr_time,
+                origin,
+                destination,
+                params,
+            }) => {
+                let mut origin = origin.to_element();
+                let mut destination = destination.to_element();
+
+                let mut dat = Element::bare("DepArrTime", NS);
+
+                match dep_arr_time {
+                    DepArrTime::Departure(d) => {
+                        dat.append_text_node(d.to_rfc3339());
+                        origin.append_child(dat);
+                    }
+                    DepArrTime::Arrival(a) => {
+                        dat.append_text_node(a.to_rfc3339());
+                        destination.append_child(dat);
+                    }
+                    DepArrTime::None => (),
+                }
+
+                let mut trip_req = Element::bare("OJPTripRequest", NS);
+                trip_req.append_child(origin);
+                trip_req.append_child(destination);
+
+                //TODO: Params
+                trip_req
+            }
+        };
+
+        let req_timestamp = Element::builder("RequestTimestamp", "")
+            .append(self.timestamp.to_rfc3339())
+            .build();
+
+        let req_ref = Element::builder("RequestorRef", "")
+            .append(self.requestor_ref.clone())
+            .build();
+
+        let mut sr = Element::bare("ServiceRequest", "");
+        sr.append_child(req_timestamp);
+        sr.append_child(req_ref);
+        sr.append_child(inner);
+
+        let mut ojp_req = Element::bare("OJPRequest", "");
+        ojp_req.append_child(sr);
+
+        let mut ojp = Element::bare("OJP", "");
+        ojp.append_child(ojp_req);
+
+        ojp
+    }
+
+    fn from_xml(xml: &str) -> anyhow::Result<Self> {
+        let ns = "http://www.siri.org.uk/siri";
+
+        let root: Element = xml.parse()?;
+
+        root.get_child("OJPRequest", ns).unwrap();
+
+        todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Request;
+
+    #[test]
+    fn deserialize() {
+        let xml = include_str!("./trip-request.xml");
+
+        Request::from_xml(xml).unwrap();
+    }
+}
