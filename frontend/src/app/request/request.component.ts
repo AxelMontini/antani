@@ -1,4 +1,6 @@
 import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 import { FormsModule, FormControl, Validators, ReactiveFormsModule } from '@angular/forms';
 import { AnswerComponent } from '../answer/answer.component';
@@ -8,7 +10,7 @@ import { AnswerComponent } from '../answer/answer.component';
   templateUrl: './request.component.html',
   styleUrls: ['./request.component.scss']
 })
-export class RequestComponent implements OnInit {
+export class RequestComponent implements OnInit  {
   date: FormControl = new FormControl(new Date(), [Validators.required]);
   ret: FormControl = new FormControl('', [Validators.required]);
   dep: FormControl = new FormControl('', [Validators.required]);
@@ -17,8 +19,6 @@ export class RequestComponent implements OnInit {
   from: FormControl = new FormControl('', [Validators.required]);
   to: FormControl = new FormControl('', [Validators.required]);
 
-  searchControl = new FormControl('');
-  searchValues: string[] = [];
   options: string[] = [
     'Zurich',
     'Bern',
@@ -29,11 +29,13 @@ export class RequestComponent implements OnInit {
     'Lugano',
     'Thun',
   ];
-
-  handleSearch(value: string) {
-    // Only display up to the last five search values.
-    // This is only for the purpose of this example.
-    this.searchValues = [value, ...this.options].slice(0, 5);
+  
+  ngOnInit() {
+  }
+  
+  autoComplete() {
+    console.log(this.from.value);
+    if(this.from.value!="") fetch(`/api/stations/${this.from.value}`).then(r => r.json()).then((r) => this.options = r['stations']);
   }
 
   // End
@@ -54,10 +56,6 @@ export class RequestComponent implements OnInit {
     this.messageEvent.emit(this.message)
   }
   /*   End of sending */
-
-  ngOnInit(): void {
-
-  }
 
   get dep_time(): Time {
     return new Time(this.dep.value);
@@ -81,6 +79,7 @@ export class RequestComponent implements OnInit {
 
 
   submit(): void {
+    console.log(this.from.value);
     if(!this.time_invalid) {
       
       console.log(this.dep_datetime);

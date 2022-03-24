@@ -1,7 +1,7 @@
 <form class ="sbb-form-group form-container">
 	<div class="from-to-container">
 		<sbb-form-field label="From">
-			<input sbbInput sbbInput [formControl]="from" [sbbAutocomplete]="auto"/>
+			<input sbbInput sbbInput [formControl]="from" [sbbAutocomplete]="auto" (keyup)="autoComplete()"/>
 		</sbb-form-field>
 		<sbb-form-field label="To">
 			<input sbbInput sbbInput [formControl]="to" [sbbAutocomplete]="auto"/>
