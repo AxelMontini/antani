@@ -277,7 +277,7 @@ async fn coordinates(db: &State<PgPool>, station: String) -> Json<Coordinates> {
 /// get weather information for the <date> at the train <station>: date=2022-10-22T16:16:16Z&station=Chiasso -> [temperature, rainfall, weather]
 #[get("/weather?<date>&<station>")]
 async fn weather(client: &State<Client>, db: &State<PgPool>, date: String, station: String) -> Json<MeteoData> {
-    let token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJOMDhQek52bDdqNGFfSlBmZ0FlZFNYTHNjcmprbmZ4OXppR2hxcHN1dkt3In0.eyJleHAiOjE2NDgxMzY0NDEsImlhdCI6MTY0ODEzMTk0MSwianRpIjoiOTcwMzE0OTktNzUzOS00ZDVlLTkyZWYtODU5MjllODgwOTJlIiwiaXNzIjoiaHR0cHM6Ly9zc28uc2JiLmNoL2F1dGgvcmVhbG1zL1NCQl9QdWJsaWMiLCJhdWQiOiJhcGltLXdlYXRoZXJfc2VydmljZS1wcm9kLWF3cyIsInN1YiI6IjQ1NGNiMjM5LTZjN2EtNGU3Zi05YzY3LWQ0ZWQyMDAzMzdmYyIsInR5cCI6IkJlYXJlciIsImF6cCI6Ijg1OGY2MzRmIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwczovL2RldmVsb3Blci5zYmIuY2giXSwic2NvcGUiOiJjbGllbnQtaW5mbyBzYmJ1aWQgcHJvZmlsZSBlbWFpbCBTQkIiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImNsaWVudEhvc3QiOiIyMTcuMTkyLjEwMi4xNCIsImNsaWVudElkIjoiODU4ZjYzNGYiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXJ2aWNlLWFjY291bnQtODU4ZjYzNGYiLCJjbGllbnRBZGRyZXNzIjoiMjE3LjE5Mi4xMDIuMTQiLCJlbWFpbCI6InNlcnZpY2UtYWNjb3VudC04NThmNjM0ZkBwbGFjZWhvbGRlci5vcmcifQ.k2dTEXqjHTeInatjFF-L0Y9aOwQpehBMdKB9LQB-6zVuT4KQGvJVKcxqGF-zydbiWoMJ4Mi1jG3VhCOzNiSaARJ1Cq7577eonfq9zQBUfiag8EOLvBsj4lZ-vk2kJhuHBzoxx-XO0DhxtIKEZE715pw5OR8j2gh1EJCbXfniV8vVtOR7e5ND1yGCujREYgqf5g90152ewKPN5bDtdVukbo-Jj4qD0aRc5z1oxhoc56oj2eJmtqrzkAT4Tx3Kdu7Nu46RgGyXCEblMEePeWm5FXUNbGKCVisrTNOI5OMKi_NplYqoc7g6d7az9t1ZuwBup30xolR85C_WYPJb9epA2Q";
+    let token = ""; // TODO: implement OAuth2
     let url = "https://weather.api.sbb.ch:443";
     let params = "t_2m:C,precip_1h:mm,weather_symbol_1h:idx";
     let coord = coordinates(db, station).await.0;
@@ -307,7 +307,7 @@ async fn weather(client: &State<Client>, db: &State<PgPool>, date: String, stati
             .unwrap()
             .as_f64()
             .unwrap();
-        acc.push(Data{parameter: param, value});
+        acc.push(Data{parameter: param.to_string(), value});
     }
     Json(MeteoData { data: acc })
 }
@@ -325,9 +325,13 @@ struct Data {
 
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
+
+    let db_uri = std::env::var("DB_URI").context("No DB_URI specified")?;
+
+
     let client = reqwest::Client::new();
     let pool = PgPoolOptions::new()
-        .connect("postgres://chad:thundercockftw@lanciapini.axelmontini.dev:32100/postgresdb")
+        .connect() // TODO: remove s
         .await?;
 
     rocket::build()
