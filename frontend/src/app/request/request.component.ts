@@ -81,14 +81,14 @@ export class RequestComponent implements OnInit {
   ngOnInit() {}
 
   autoCompleteFrom() {
-    if (this.from.value != '')
-      fetch(`/api/stations/${this.from.value}`)
-        .then((r) => r.json())
-        .then((r) => (this.optionsFrom = r['stations']));
-    else this.optionsFrom = this.defaultOptions;
+    this.loadStations(this.from.value, this.optionsFrom);
+    if(this.optionsFrom.length==0) this.optionsFrom = this.defaultOptions;
   }
 
-  autoCompleteTo() {}
+  autoCompleteTo() {
+    this.loadStations(this.to.value, this.optionsTo);
+    if(this.optionsTo.length==0) this.optionsTo = this.defaultOptions;
+  }
 
   loadStations(str: string, stationFound: string[]) {
     if (str != '')

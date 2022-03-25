@@ -29,9 +29,8 @@
 			</sbb-form-field>
 		</div>
 	</div>
-	<sbb-error *ngIf="depTime.invalid">Invalid departure time.</sbb-error>
-	<sbb-error *ngIf="retTime.invalid">Invalid return time.</sbb-error>
-	<sbb-error *ngIf="dep.errors?.['invalid']">Departure time is  invalid.</sbb-error>
+	<sbb-error *ngIf="dep.errors?.['required']">Departure is  required.</sbb-error>
+	<sbb-error *ngIf="ret.errors?.['required']">Return is  required.</sbb-error>
 	<sbb-error *ngIf="ret.errors?.['invalid']">Return time is  invalid.</sbb-error>
 	<sbb-error *ngIf="dep.errors?.['invalid']">Departure time is  invalid.</sbb-error>
 	<sbb-error *ngIf="ret.errors?.['invalid']">Return time is  invalid.</sbb-error>
