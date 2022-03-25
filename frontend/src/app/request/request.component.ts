@@ -12,12 +12,13 @@ import {
 } from '@angular/forms';
 
 export type Message = {
-  showLoading: boolean;
-  from: string;
-  to: string;
-  depDatetime: string;
-  retDatetime: string;
-};
+  showLoading: boolean,
+  from: string,
+  to:string,
+  dateTimeDep: string,
+  dateTimeArr: string,
+  lastYearDate: string
+}
 
 @Component({
   selector: 'app-request',
@@ -134,6 +135,13 @@ export class RequestComponent implements OnInit {
   @Output() messageEvent = new EventEmitter<Message>();
   /*   End of sending */
 
+  handleClick() {
+    let toTemp = this.to.value;
+    this.to.setValue(this.from.value);
+    this.from.setValue(toTemp);
+  }
+
+
   get depTime(): Time {
     return new Time(this.dep.value);
   }
@@ -163,8 +171,9 @@ export class RequestComponent implements OnInit {
         showLoading: true,
         from: this.from.value,
         to: this.to.value,
-        depDatetime: this.depDatetime.toISOString(),
-        retDatetime: this.retDatetime.toISOString(),
+        dateTimeDep: this.depDatetime.toISOString(),
+        dateTimeArr: this.retDatetime.toISOString(),
+        lastYearDate: (new Date(+this.depDatetime-31536000000)).toISOString(),
       };
       this.messageEvent.emit(message);
       /* */

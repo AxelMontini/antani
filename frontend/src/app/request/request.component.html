@@ -8,6 +8,7 @@
 		<sbb-autocomplete #autoFrom="sbbAutocomplete">
 			<sbb-option *ngFor="let option of optionsFrom" [value]="option">{{ option }}</sbb-option>
 		</sbb-autocomplete>
+		<sbb-icon svgIcon="kom:arrow-change-horizontal-medium" class="swap-button" (click)="handleClick()"></sbb-icon>
 		<sbb-form-field label="To">
 			<input sbbInput [formControl] = "to" [sbbAutocomplete]="autoTo" (keyup)="autoCompleteTo()"/>
 			<sbb-error *ngIf="to.errors?.['required']">Destination is required.</sbb-error>
@@ -40,8 +41,8 @@
 				<sbb-error *ngIf="ret.errors?.['past'] ">Return must be after departure</sbb-error>
 			</sbb-form-field>
 		</div>
+		<button sbb-button (click)="submit()" class="submit" style="max-width:100% !important;margin-top: -1vh;">Let's bike!</button>
 	</div>
 	
 	<!-- <sbb-error *ngIf="datetime_past">Time is in the past.</sbb-error> -->
-	<button sbb-button (click)="submit()" class="submit" style="max-width:100% !important;margin-top: -1vh;">Let's bike!</button>
 </form>

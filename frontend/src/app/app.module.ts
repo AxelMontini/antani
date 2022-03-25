@@ -16,7 +16,8 @@ import { SbbModule } from './sbb.module';
 import { RequestAnswerComponentComponent } from './request-answer-component/request-answer-component.component';
 import { MeteoComponent } from './meteo/meteo.component';
 import { TrainsComponent } from './trains/trains.component';
-import { StationsComponent } from './stations/stations.component';@NgModule({
+import { StationsComponent } from './stations/stations.component';
+import { HolydaysComponent } from './holydays/holydays.component';@NgModule({
   declarations: [
     AppComponent,
     RequestComponent,
@@ -25,6 +26,7 @@ import { StationsComponent } from './stations/stations.component';@NgModule({
     MeteoComponent,
     TrainsComponent,
     StationsComponent,
+    HolydaysComponent,
   ],
   imports: [
     FormsModule,

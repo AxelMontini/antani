@@ -1,5 +1,5 @@
 -- Add migration script here
-CREATE TABLE schoolHolidays (
+CREATE TABLE IF NOT EXISTS SchoolHolidays (
     id SERIAL NOT NULL,
     canton VARCHAR(128) NOT NULL,
     population INTEGER NOT NULL,

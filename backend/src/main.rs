@@ -1,26 +1,29 @@
-use std::{ops::Deref, str::FromStr};
+use std::{ops::Deref, sync::Arc};
 
 use anyhow::Context;
 use api::{
     Connection, ConnectionRequest, ConnectionResponse, LocationRequest, CONNECTIONS, LOCATIONS,
 };
-use chrono::{DateTime, NaiveDate, Utc, FixedOffset};
+use chrono::{DateTime, Duration, FixedOffset, NaiveDate, Utc};
+use futures::{StreamExt, TryStreamExt};
 use reqwest::Client;
 use rocket::{
     form::FromFormField,
-    get, launch,
+    get,
     response::status,
     routes,
     serde::{json::Json, Deserialize, Serialize},
-    State,
+    Either, State,
 };
 
 use sqlx::{postgres::PgPoolOptions, PgPool};
+use structopt::StructOpt;
 
 use crate::api::LocationRequestType;
 
 mod api;
 mod db;
+mod utils;
 
 #[derive(Serialize, Debug)]
 struct Locations {}
@@ -74,7 +77,6 @@ async fn stations(db: &State<PgPool>, start: String) -> Json<Stations> {
     );
 
     let response = query.fetch_all(db.deref()).await.unwrap(); //TODO: Handle error and do not PANIK!!
-    println!("{:?}", response);
     let dio = Stations {
         stations: response.iter().map(|e| return e.name.to_string()).collect(),
     };
@@ -113,34 +115,53 @@ struct Fields {
 
 /// get all the stops of train number <trainNr>: 324 -> ["Chiasso", ...]
 #[get("/stops?<trainNr>")]
-async fn stops(client: &State<Client>, db: &State<PgPool>, trainNr: i32) -> Json<Stops> {
+pub async fn stops(
+    client: &State<Client>,
+    db: &State<PgPool>,
+    trainNr: i32,
+) -> Result<Json<Stops>, status::BadRequest<()>> {
+    let stops = get_stops(client, db, trainNr)
+        .await
+        .map_err(|_| status::BadRequest(None))?;
+    Ok(Json(Stops { stops }))
+}
+
+pub async fn get_stops(client: &Client, _db: &PgPool, trainNr: i32) -> anyhow::Result<Vec<String>> {
     let params = [
         ("dataset", "ist-daten-sbb"),
         ("q", &trainNr.to_string()),
         ("sort", "ab_prognose"),
     ];
-    let res = client
+
+    Ok(client
         .get("https://data.sbb.ch/api/records/1.0/search/")
         .query(&params)
         .send()
-        .await
-        .unwrap()
+        .await?
         .json::<Response>()
-        .await
-        .unwrap()
-        .get_stations();
-    Json(Stops { stops: res })
+        .await?
+        .get_stations())
 }
 
 /// get abbreviation of <station>: "Zurich HB" -> "ZUE"
 #[get("/abbrev?<station>")]
-async fn abbrev(db: &State<PgPool>, station: String) -> String {
-    let query = sqlx::query!(
-        r#"SELECT abbrev FROM stations WHERE name=$1 or locality=$1"#,
-        station
-    );
-    let response = query.fetch_one(db.deref()).await.unwrap();
-    response.abbrev.unwrap()
+async fn abbrev(
+    db: &State<PgPool>,
+    station: &str,
+) -> Result<String, status::BadRequest<&'static str>> {
+    get_abbrev(db, &station)
+        .await
+        .map_err(|_e| status::BadRequest(Some("database error")))?
+        .ok_or(status::BadRequest(Some("station does not exist")))
+}
+
+async fn get_abbrev(db: &PgPool, station: &str) -> anyhow::Result<Option<String>> {
+    let query = sqlx::query!(r#"SELECT abbrev FROM stations WHERE name=$1"#, station);
+    let response = query
+        .fetch_one(db)
+        .await
+        .context("fetch abbrev of station")?;
+    Ok(response.abbrev)
 }
 
 #[derive(Serialize)]
@@ -156,24 +177,38 @@ async fn capacity(
     db: &State<PgPool>,
     date: String,
     trainNr: i32,
-) -> Result<Json<Capacity>, status::BadRequest<String>> {
+) -> Result<Json<Option<Capacity>>, status::BadRequest<String>> {
     // TODO: Check if date should be used as Swiss Timezone or Utc in the database
     let date = date
-        .parse::<DateTime<Utc>>()
-        .map_err(|e| status::BadRequest(Some(e.to_string())))?
-        .date()
-        .naive_local();
+        .parse::<NaiveDate>()
+        .map_err(|e| status::BadRequest(Some(e.to_string())))?;
 
+    let cap = get_capacity(db, date, trainNr)
+        .await
+        .map_err(|e| status::BadRequest(Some(e.to_string())))?;
+
+    Ok(Json(cap))
+}
+
+async fn get_capacity(
+    db: &PgPool,
+    date: NaiveDate,
+    trainNr: i32,
+) -> anyhow::Result<Option<Capacity>> {
     let query = sqlx::query!(
         r#"SELECT max(capacity) FROM dataset WHERE connectionDate=$1 and trainNr=$2"#,
         date,
         trainNr
     );
-    let response = query.fetch_one(db.deref()).await.unwrap();
-    Ok(Json(Capacity {
+    let response = query
+        .fetch_one(db.deref())
+        .await
+        .context("fetching train capacity")?;
+
+    Ok(response.max.map(|max| Capacity {
         date,
         trainNr,
-        capacity: response.max.unwrap(),
+        capacity: max,
     }))
 }
 
@@ -214,7 +249,7 @@ struct FConnection {
 // Get connections for the given addresses
 #[get("/connections?<from>&<to>&<datetime>&<is_arrival_time>")]
 async fn connections(
-    db: &State<PgPool>,
+    _db: &State<PgPool>,
     client: &State<Client>,
     from: String,
     to: String,
@@ -239,7 +274,10 @@ async fn connections(
     };
 
     let res = client.get(CONNECTIONS).query(&req).send().await.unwrap();
+    //let text = res.text().await.unwrap();
     let cr: ConnectionResponse = res.json().await.unwrap();
+    //println!("JSON: {}", text);
+    //let cr: ConnectionResponse = serde_json::from_str(&text).unwrap();
 
     // Try to sort connections based on bike places availability
     //let algorithm = |a| 1.0;
@@ -274,10 +312,121 @@ async fn coordinates(db: &State<PgPool>, station: String) -> Json<Coordinates> {
     })
 }
 
+#[derive(Serialize)]
+struct Holiday {
+    isHoliday: bool,
+}
+
+#[get("/holidays?<name>&<date>")]
+async fn holidays(
+    db: &State<PgPool>,
+    name: String,
+    date: String,
+) -> Result<Json<Holiday>, status::BadRequest<String>> {
+    let date = date
+        .parse::<NaiveDate>()
+        .map_err(|e| status::BadRequest(Some(e.to_string())))?;
+
+    let response = sqlx::query!(
+        "SELECT count(*) FROM ((SELECT cantonName FROM stations WHERE name=$1) INTERSECT (SELECT canton as cantonName FROM schoolholidays WHERE (fallStart <= $2 and fallEnd >= $2) or (summerStart <= $2 and summerEnd >= $2) or (springStart <= $2 and springEnd >= $2))) as bbb",
+        name,
+        date
+    ).fetch_one(db.deref()).await.unwrap();
+    let flag = response.count.unwrap_or(0);
+    Ok(Json(Holiday {
+        isHoliday: flag == 1,
+    }))
+}
+
+struct Token {
+    val: String,
+    expiration: DateTime<Utc>,
+}
+
+impl Token {
+    /// Returns true whether the token is very close to expiration or has already expired
+    pub fn is_expired(&self) -> bool {
+        Utc::now() > self.expiration + Duration::seconds(50)
+    }
+}
+
+#[derive(derive_more::Deref)]
+struct ClientSecret(Arc<str>);
+
+#[derive(derive_more::Deref)]
+struct ClientId(Arc<str>);
+
+#[derive(Deserialize, Debug)]
+struct TokenObject {
+    access_token: String,
+    expires_in: i64,
+    token_type: String,
+    scope: String,
+}
+
+struct TokenState(rocket::tokio::sync::RwLock<Token>);
+
+impl Deref for TokenState {
+    type Target = rocket::tokio::sync::RwLock<Token>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Returns a token or not lmao
+async fn auth(client: &Client, client_id: &str, client_secret: &str) -> anyhow::Result<Token> {
+    let token_url = "https://sso.sbb.ch/auth/realms/SBB_Public/protocol/openid-connect/token";
+
+    let token_resp = client
+        .post(token_url)
+        .form(&[
+            ("client_id", client_id),
+            ("client_secret", client_secret),
+            ("grant_type", "client_credentials"),
+        ])
+        .send()
+        .await?;
+
+    let token_obj: TokenObject = token_resp.json().await?;
+
+    let token = Token {
+        val: token_obj.access_token,
+        expiration: Utc::now() + Duration::seconds(token_obj.expires_in),
+    };
+
+    Ok(token)
+}
+
 /// get weather information for the <date> at the train <station>: date=2022-10-22T16:16:16Z&station=Chiasso -> [temperature, rainfall, weather]
 #[get("/weather?<date>&<station>")]
-async fn weather(client: &State<Client>, db: &State<PgPool>, date: String, station: String) -> Json<MeteoData> {
-    let token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJOMDhQek52bDdqNGFfSlBmZ0FlZFNYTHNjcmprbmZ4OXppR2hxcHN1dkt3In0.eyJleHAiOjE2NDgxMzY0NDEsImlhdCI6MTY0ODEzMTk0MSwianRpIjoiOTcwMzE0OTktNzUzOS00ZDVlLTkyZWYtODU5MjllODgwOTJlIiwiaXNzIjoiaHR0cHM6Ly9zc28uc2JiLmNoL2F1dGgvcmVhbG1zL1NCQl9QdWJsaWMiLCJhdWQiOiJhcGltLXdlYXRoZXJfc2VydmljZS1wcm9kLWF3cyIsInN1YiI6IjQ1NGNiMjM5LTZjN2EtNGU3Zi05YzY3LWQ0ZWQyMDAzMzdmYyIsInR5cCI6IkJlYXJlciIsImF6cCI6Ijg1OGY2MzRmIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwczovL2RldmVsb3Blci5zYmIuY2giXSwic2NvcGUiOiJjbGllbnQtaW5mbyBzYmJ1aWQgcHJvZmlsZSBlbWFpbCBTQkIiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImNsaWVudEhvc3QiOiIyMTcuMTkyLjEwMi4xNCIsImNsaWVudElkIjoiODU4ZjYzNGYiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXJ2aWNlLWFjY291bnQtODU4ZjYzNGYiLCJjbGllbnRBZGRyZXNzIjoiMjE3LjE5Mi4xMDIuMTQiLCJlbWFpbCI6InNlcnZpY2UtYWNjb3VudC04NThmNjM0ZkBwbGFjZWhvbGRlci5vcmcifQ.k2dTEXqjHTeInatjFF-L0Y9aOwQpehBMdKB9LQB-6zVuT4KQGvJVKcxqGF-zydbiWoMJ4Mi1jG3VhCOzNiSaARJ1Cq7577eonfq9zQBUfiag8EOLvBsj4lZ-vk2kJhuHBzoxx-XO0DhxtIKEZE715pw5OR8j2gh1EJCbXfniV8vVtOR7e5ND1yGCujREYgqf5g90152ewKPN5bDtdVukbo-Jj4qD0aRc5z1oxhoc56oj2eJmtqrzkAT4Tx3Kdu7Nu46RgGyXCEblMEePeWm5FXUNbGKCVisrTNOI5OMKi_NplYqoc7g6d7az9t1ZuwBup30xolR85C_WYPJb9epA2Q";
+async fn weather(
+    client: &State<Client>,
+    db: &State<PgPool>,
+    client_secret: &State<ClientSecret>,
+    client_id: &State<ClientId>,
+    token_state: &State<TokenState>,
+    date: String,
+    station: String,
+) -> Json<MeteoData> {
+    let token = token_state.read().await;
+
+    let token = if token.is_expired() {
+        // MUST drop token before modifying it, otherwise we end up causing a deadlock
+        std::mem::drop(token);
+        {
+            // Authenticate and set new token in RwLock
+            let token = auth(client, &client_id, &client_secret)
+                .await
+                .expect("major fuckup happened when authenticating to the weather API"); // TODO: Can handle? Probably not gracefully
+            let mut token_write = token_state.write().await;
+            *token_write = token;
+        }
+        token_state.read().await
+    } else {
+        token
+    };
+
     let url = "https://weather.api.sbb.ch:443";
     let params = "t_2m:C,precip_1h:mm,weather_symbol_1h:idx";
     let coord = coordinates(db, station).await.0;
@@ -287,14 +436,14 @@ async fn weather(client: &State<Client>, db: &State<PgPool>, date: String, stati
         url, date, params, coord.lat, coord.long
     );
 
-    let a = client.post(req).bearer_auth(token).send().await.unwrap();
-    let raw_array: serde_json::Value = a.json().await.unwrap();
+    let meteo_resp = client.post(req).bearer_auth(&token.val).send().await.unwrap();
+    let raw_array: serde_json::Value = meteo_resp.json().await.unwrap();
     let mut acc = vec![];
     let j = raw_array.get("data").unwrap();
     for i in 0..3 {
         let data = j.get(i).unwrap();
         let param = data.get("parameter").unwrap().as_str().unwrap();
-        let value = data
+        let value = data // TODO: handle errors like a human being
             .get("coordinates")
             .unwrap()
             .get(0)
@@ -307,8 +456,12 @@ async fn weather(client: &State<Client>, db: &State<PgPool>, date: String, stati
             .unwrap()
             .as_f64()
             .unwrap();
-        acc.push(Data{parameter: param.to_string(), value});
+        acc.push(Data {
+            parameter: param.to_string(),
+            value,
+        });
     }
+
     Json(MeteoData { data: acc })
 }
 
@@ -323,17 +476,158 @@ struct Data {
     value: f64,
 }
 
+async fn fill_occupancy(client: &Client, db: &PgPool) -> anyhow::Result<()> {
+    let all_travels = sqlx::query!(
+        "(SELECT connectionDate, trainNr FROM Dataset GROUP BY connectionDate, trainNr) EXCEPT (SELECT connectionDate, trainNr FROM Occupancy)"
+    );
+    all_travels
+        .fetch_many(db)
+        .map(|r| r.map_err(|e| anyhow::anyhow!(e)))
+        .try_for_each(|e| async {
+            println!("FOR EACH");
+            match e {
+                Either::Right(rec) => {
+                    let trainNr = rec.trainnr.context("No train nr")?;
+                    let date = rec.connectiondate.context("No connection date")?;
+
+                    let bikes = occupancy(client, db, trainNr, date).await?;
+                    println!(
+                        ">> TrainNr: {}, date: {}, Bikes: {:?}",
+                        trainNr, date, bikes
+                    );
+                    Ok(())
+                }
+                o => Err(anyhow::anyhow!("What is going on here {:?}", o)),
+            }
+        })
+        .await?;
+
+    Ok(())
+}
+
+async fn occupancy(
+    client: &Client,
+    db: &PgPool,
+    trainNr: i32,
+    date: NaiveDate,
+) -> anyhow::Result<Vec<i32>> {
+    let stops = get_stops(client, db, trainNr).await?;
+    println!("JOIN ALL");
+    let abbrevs = futures::future::join_all(stops.iter().map(|e| get_abbrev(db, e))).await;
+    // let capacity = get_capacity(db, date, trainNr)
+    //     .await?
+    //     .map(|c| c.capacity)
+    //     .unwrap_or(0);
+
+    let legsAmount = stops.len(); // was - 1
+    let mut legs = vec![0; legsAmount];
+
+    let postgresDate = date;
+    println!("Select");
+    let query = sqlx::query!("SELECT stationFrom, stationTo, reserved FROM dataset WHERE connectionDate=$1 and trainNr=$2", postgresDate, trainNr);
+    let response = query.fetch_all(db.deref()).await.unwrap();
+
+    response.iter().for_each(|rec| {
+        let mut flag = false;
+        for (index, s) in abbrevs.iter().enumerate() {
+            match s {
+                Ok(Some(s)) => {
+                    flag |= s == &rec.stationfrom;
+                    if flag {
+                        if s.clone() == rec.stationto {
+                            break;
+                        }
+                        legs[index] += rec.reserved;
+                    }
+                }
+                o => panic!("Wrong thing {:?}", o), //TODO: Do something when this happens
+            }
+        }
+    });
+    legs.pop();
+    Ok(legs)
+}
+
+#[derive(StructOpt)]
+#[structopt(about = "SBB Bikes server and cli", name = "sbb-bikes")]
+struct Opts {
+    #[structopt(subcommand)]
+    command: Subcommand,
+}
+
+#[derive(StructOpt)]
+enum Subcommand {
+    /// Start the web server
+    Start(StartCmd),
+    /// Generate occupancy data
+    Gen(GenCmd),
+}
+
+#[derive(StructOpt)]
+struct GenCmd {
+    #[structopt(short, long, env)]
+    database_url: String,
+}
+
+#[derive(StructOpt)]
+struct StartCmd {
+    #[structopt(short, long, env)]
+    database_url: String,
+    #[structopt(long, env)]
+    weather_id: String,
+    #[structopt(long, env)]
+    weather_secret: String,
+}
+
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
+    let opts = Opts::from_args();
+
+    match opts.command {
+        Subcommand::Start(s) => start(s).await,
+        Subcommand::Gen(g) => gen(g).await,
+    }
+}
+
+async fn gen(opts: GenCmd) -> anyhow::Result<()> {
+    let db_uri = opts.database_url;
+
     let client = reqwest::Client::new();
-    let pool = PgPoolOptions::new()
-        .connect("postgres://chad:thundercockftw@lanciapini.axelmontini.dev:32100/postgresdb")
-        .await?;
+    let pool = PgPoolOptions::new().connect(&db_uri).await?;
+
+    fill_occupancy(&client, &pool).await
+}
+
+async fn start(opts: StartCmd) -> anyhow::Result<()> {
+    let db_uri = opts.database_url;
+
+    let client = reqwest::Client::new();
+    let pool = PgPoolOptions::new().connect(&db_uri).await?;
 
     rocket::build()
         .manage(client)
         .manage(pool)
-        .mount("/", routes![locations, stations, stops, abbrev, capacity, connections, coordinates, weather])
+        .manage(ClientSecret(opts.weather_secret.into())) // secret and id used for weather
+        .manage(ClientId(opts.weather_id.into()))
+        .manage(TokenState(rocket::tokio::sync::RwLock::new(Token {
+            // invalid token since the start, auth lazily
+            val: "".into(),
+            expiration: Utc::now() - Duration::seconds(60),
+        })))
+        .mount(
+            "/",
+            routes![
+                locations,
+                stations,
+                stops,
+                abbrev,
+                capacity,
+                connections,
+                coordinates,
+                weather,
+                holidays
+            ],
+        )
         .launch()
         .await
         .context("rocket error")

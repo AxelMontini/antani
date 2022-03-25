@@ -1,5 +1,5 @@
 -- Add migration script here
-CREATE TABLE weather (
+CREATE TABLE IF NOT EXISTS Weather (
     id SERIAL NOT NULL,
     stationId VARCHAR(25) NOT NULL,
     leisureBiking DOUBLE PRECISION NOT NULL,

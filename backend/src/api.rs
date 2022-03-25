@@ -1,6 +1,7 @@
-use chrono::{Date, DateTime, Duration, DurationRound, NaiveTime, Utc};
-use reqwest::Url;
-use rocket::local::asynchronous::LocalRequest;
+use schemars::JsonSchema;
+use chrono::{DateTime, FixedOffset};
+
+
 use serde::{Deserialize, Serialize};
 
 const PREFIX: &str = "http://transport.opendata.ch/v1";
@@ -8,7 +9,8 @@ pub const LOCATIONS: &str = "http://transport.opendata.ch/v1/locations";
 pub const CONNECTIONS: &str = "http://transport.opendata.ch/v1/connections";
 pub const STATIONBOARD: &str = "http://transport.opendata.ch/v1/stationboard";
 
-#[derive(Debug, Serialize, Deserialize)]
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum LocationType {
     Station,
@@ -35,7 +37,7 @@ impl TryFrom<&str> for LocationType {
 #[error("Invalid LocationTypeError: \"{0}\"")]
 pub struct LocationTypeError(String);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Location {
     pub id: String,
     #[serde(rename = "type")]
@@ -46,7 +48,7 @@ pub struct Location {
     pub distance: Option<f32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Coordinate {
     #[serde(rename = "type")]
     pub ty: String,
@@ -142,24 +144,24 @@ impl Into<String> for TransportationType {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, JsonSchema)]
 pub struct ConnectionResponse {
     pub connections: Vec<Connection>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Connection {
     pub from: Checkpoint,
     pub to: Checkpoint,
     pub duration: String,
-    pub service: Service,
+    pub service: Option<Service>,
     pub products: Vec<String>,
-    pub capacity1st: u8,
-    pub capacity2nd: u8,
+    pub capacity1st: Option<u8>,
+    pub capacity2nd: Option<u8>,
     pub sections: Vec<Section>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Section {
     pub journey: Option<Journey>,
     pub walk: Option<f32>,
@@ -167,48 +169,49 @@ pub struct Section {
     pub arrival: Checkpoint,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Journey {
     pub name: String,
     pub category: String,
-    pub categoryCode: u32,
-    pub number: u32,
-    pub operator: u32,
+    pub categoryCode: Option<u32>,
+    pub number: String,
+    pub operator: String,
     pub to: String,
     pub passList: Vec<Checkpoint>,
-    pub capacity1st: u8,
-    pub capacity2nd: u8,
+    pub capacity1st: Option<u8>,
+    pub capacity2nd: Option<u8>,
 }
 
 /// What is this for???
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Service {
     pub regular: String,
     pub irregular: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Checkpoint {
     pub station: Location,
-    pub arrival: NaiveTime,
-    pub departure: Option<NaiveTime>,
+    pub arrival: Option<DateTime<FixedOffset>>,
+    pub departure: Option<DateTime<FixedOffset>>,
     pub delay: Option<u32>,
-    pub platform: u32, // TODO: Can be string?
+    pub platform: Option<String>,
     pub prognosis: Option<Prognosis>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Prognosis {
-    pub arrival: DateTime<Utc>,
-    pub departure: Option<DateTime<Utc>>,
-    pub platform: u32,
-    pub capacity1st: u8,
-    pub capacity2nd: u8,
+    pub arrival: Option<DateTime<FixedOffset>>,
+    pub departure: Option<DateTime<FixedOffset>>,
+    pub platform: Option<String>,
+    pub capacity1st: Option<String>,
+    pub capacity2nd: Option<String>,
 }
 
 #[cfg(test)]
 mod tests {
     use rocket::tokio;
+    use schemars::schema_for;
 
     use super::*;
 
@@ -248,6 +251,12 @@ mod tests {
 
         assert!(resp.status().is_success());
 
-        let cr: ConnectionResponse = resp.json().await.unwrap();
+        let _cr: ConnectionResponse = resp.json().await.unwrap();
+    }
+
+    #[test]
+    fn schemas() {
+        let schema = schema_for!(ConnectionResponse);
+        println!("{}", serde_json::to_string_pretty(&schema).unwrap());
     }
 }

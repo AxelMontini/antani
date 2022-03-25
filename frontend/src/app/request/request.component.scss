@@ -8,6 +8,15 @@ sbb-form-field {
     margin-right: 20px;
 }
 
+:host .swap-button {
+    transform:translateY(25px);
+    margin-right: 15px;
+}
+
+:host .swap-button:hover {
+    color: red;
+}
+
 :host .date-time-container, .submit-container, .form-container, .from-to-container {
     display: flex;
     flex-wrap: nowrap;
@@ -25,6 +34,10 @@ sbb-form-field {
     justify-content: space-between;
 }
 
+:host .ret {
+     display: none;
+}
+
 @media screen and (max-width: 768px) {
     :host .from-to-container {
         flex-wrap: wrap;
@@ -34,3 +47,10 @@ sbb-form-field {
         flex-wrap: wrap;
     }
 }
+
+@media screen and (min-width: 768px) {
+    :host .submit {
+        transform: translateY(31px);
+    }
+}
+
