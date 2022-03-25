@@ -573,9 +573,9 @@ struct GenCmd {
 struct StartCmd {
     #[structopt(short, long, env)]
     database_url: String,
-    #[structopt(short, long, env)]
+    #[structopt(long, env)]
     weather_id: String,
-    #[structopt(short, long, env)]
+    #[structopt(long, env)]
     weather_secret: String,
 }
 
