@@ -1,10 +1,10 @@
-use std::{ops::Deref};
+use std::{ops::Deref, sync::Arc};
 
 use anyhow::Context;
 use api::{
     Connection, ConnectionRequest, ConnectionResponse, LocationRequest, CONNECTIONS, LOCATIONS,
 };
-use chrono::{DateTime, FixedOffset, NaiveDate, Utc};
+use chrono::{DateTime, Duration, FixedOffset, NaiveDate, Utc};
 use futures::{StreamExt, TryStreamExt};
 use reqwest::Client;
 use rocket::{
@@ -312,15 +312,121 @@ async fn coordinates(db: &State<PgPool>, station: String) -> Json<Coordinates> {
     })
 }
 
+#[derive(Serialize)]
+struct Holiday {
+    isHoliday: bool,
+}
+
+#[get("/holidays?<name>&<date>")]
+async fn holidays(
+    db: &State<PgPool>,
+    name: String,
+    date: String,
+) -> Result<Json<Holiday>, status::BadRequest<String>> {
+    let date = date
+        .parse::<NaiveDate>()
+        .map_err(|e| status::BadRequest(Some(e.to_string())))?;
+
+    let response = sqlx::query!(
+        "SELECT count(*) FROM ((SELECT cantonName FROM stations WHERE name=$1) INTERSECT (SELECT canton as cantonName FROM schoolholidays WHERE (fallStart <= $2 and fallEnd >= $2) or (summerStart <= $2 and summerEnd >= $2) or (springStart <= $2 and springEnd >= $2))) as bbb",
+        name,
+        date
+    ).fetch_one(db.deref()).await.unwrap();
+    let flag = response.count.unwrap_or(0);
+    Ok(Json(Holiday {
+        isHoliday: flag == 1,
+    }))
+}
+
+struct Token {
+    val: String,
+    expiration: DateTime<Utc>,
+}
+
+impl Token {
+    /// Returns true whether the token is very close to expiration or has already expired
+    pub fn is_expired(&self) -> bool {
+        Utc::now() > self.expiration + Duration::seconds(50)
+    }
+}
+
+#[derive(derive_more::Deref)]
+struct ClientSecret(Arc<str>);
+
+#[derive(derive_more::Deref)]
+struct ClientId(Arc<str>);
+
+#[derive(Deserialize, Debug)]
+struct TokenObject {
+    access_token: String,
+    expires_in: i64,
+    token_type: String,
+    scope: String,
+}
+
+struct TokenState(rocket::tokio::sync::RwLock<Token>);
+
+impl Deref for TokenState {
+    type Target = rocket::tokio::sync::RwLock<Token>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Returns a token or not lmao
+async fn auth(client: &Client, client_id: &str, client_secret: &str) -> anyhow::Result<Token> {
+    let token_url = "https://sso.sbb.ch/auth/realms/SBB_Public/protocol/openid-connect/token";
+
+    let token_resp = client
+        .post(token_url)
+        .form(&[
+            ("client_id", client_id),
+            ("client_secret", client_secret),
+            ("grant_type", "client_credentials"),
+        ])
+        .send()
+        .await?;
+
+    let token_obj: TokenObject = token_resp.json().await?;
+
+    let token = Token {
+        val: token_obj.access_token,
+        expiration: Utc::now() + Duration::seconds(token_obj.expires_in),
+    };
+
+    Ok(token)
+}
+
 /// get weather information for the <date> at the train <station>: date=2022-10-22T16:16:16Z&station=Chiasso -> [temperature, rainfall, weather]
 #[get("/weather?<date>&<station>")]
 async fn weather(
     client: &State<Client>,
     db: &State<PgPool>,
+    client_secret: &State<ClientSecret>,
+    client_id: &State<ClientId>,
+    token_state: &State<TokenState>,
     date: String,
     station: String,
 ) -> Json<MeteoData> {
-    let token = ""; // TODO: implement OAuth2
+    let token = token_state.read().await;
+
+    let token = if token.is_expired() {
+        // MUST drop token before modifying it, otherwise we end up causing a deadlock
+        std::mem::drop(token);
+        {
+            // Authenticate and set new token in RwLock
+            let token = auth(client, &client_id, &client_secret)
+                .await
+                .expect("major fuckup happened when authenticating to the weather API"); // TODO: Can handle? Probably not gracefully
+            let mut token_write = token_state.write().await;
+            *token_write = token;
+        }
+        token_state.read().await
+    } else {
+        token
+    };
+
     let url = "https://weather.api.sbb.ch:443";
     let params = "t_2m:C,precip_1h:mm,weather_symbol_1h:idx";
     let coord = coordinates(db, station).await.0;
@@ -330,8 +436,8 @@ async fn weather(
         url, date, params, coord.lat, coord.long
     );
 
-    let a = client.post(req).bearer_auth(token).send().await.unwrap();
-    let raw_array: serde_json::Value = a.json().await.unwrap();
+    let meteo_resp = client.post(req).bearer_auth(&token.val).send().await.unwrap();
+    let raw_array: serde_json::Value = meteo_resp.json().await.unwrap();
     let mut acc = vec![];
     let j = raw_array.get("data").unwrap();
     for i in 0..3 {
@@ -355,6 +461,7 @@ async fn weather(
             value,
         });
     }
+
     Json(MeteoData { data: acc })
 }
 
@@ -384,7 +491,10 @@ async fn fill_occupancy(client: &Client, db: &PgPool) -> anyhow::Result<()> {
                     let date = rec.connectiondate.context("No connection date")?;
 
                     let bikes = occupancy(client, db, trainNr, date).await?;
-                    println!(">> TrainNr: {}, date: {}, Bikes: {:?}", trainNr, date, bikes);
+                    println!(
+                        ">> TrainNr: {}, date: {}, Bikes: {:?}",
+                        trainNr, date, bikes
+                    );
                     Ok(())
                 }
                 o => Err(anyhow::anyhow!("What is going on here {:?}", o)),
@@ -402,6 +512,7 @@ async fn occupancy(
     date: NaiveDate,
 ) -> anyhow::Result<Vec<i32>> {
     let stops = get_stops(client, db, trainNr).await?;
+    println!("JOIN ALL");
     let abbrevs = futures::future::join_all(stops.iter().map(|e| get_abbrev(db, e))).await;
     // let capacity = get_capacity(db, date, trainNr)
     //     .await?
@@ -415,8 +526,8 @@ async fn occupancy(
     println!("Select");
     let query = sqlx::query!("SELECT stationFrom, stationTo, reserved FROM dataset WHERE connectionDate=$1 and trainNr=$2", postgresDate, trainNr);
     let response = query.fetch_all(db.deref()).await.unwrap();
+
     response.iter().for_each(|rec| {
-        println!("Record");
         let mut flag = false;
         for (index, s) in abbrevs.iter().enumerate() {
             match s {
@@ -434,18 +545,12 @@ async fn occupancy(
         }
     });
     legs.pop();
-    println!("{:?}", abbrevs);
-    println!("{:?}", legs);
-    println!("{:?}", response);
-
     Ok(legs)
 }
 
 #[derive(StructOpt)]
 #[structopt(about = "SBB Bikes server and cli", name = "sbb-bikes")]
 struct Opts {
-    #[structopt(short, long, env)]
-    database_url: String,
     #[structopt(subcommand)]
     command: Subcommand,
 }
@@ -453,9 +558,25 @@ struct Opts {
 #[derive(StructOpt)]
 enum Subcommand {
     /// Start the web server
-    Start {},
+    Start(StartCmd),
     /// Generate occupancy data
-    Gen {},
+    Gen(GenCmd),
+}
+
+#[derive(StructOpt)]
+struct GenCmd {
+    #[structopt(short, long, env)]
+    database_url: String,
+}
+
+#[derive(StructOpt)]
+struct StartCmd {
+    #[structopt(short, long, env)]
+    database_url: String,
+    #[structopt(short, long, env)]
+    weather_id: String,
+    #[structopt(short, long, env)]
+    weather_secret: String,
 }
 
 #[rocket::main]
@@ -463,12 +584,12 @@ async fn main() -> anyhow::Result<()> {
     let opts = Opts::from_args();
 
     match opts.command {
-        Subcommand::Start {} => start(opts).await,
-        Subcommand::Gen {} => gen(opts).await,
+        Subcommand::Start(s) => start(s).await,
+        Subcommand::Gen(g) => gen(g).await,
     }
 }
 
-async fn gen(opts: Opts) -> anyhow::Result<()> {
+async fn gen(opts: GenCmd) -> anyhow::Result<()> {
     let db_uri = opts.database_url;
 
     let client = reqwest::Client::new();
@@ -477,9 +598,7 @@ async fn gen(opts: Opts) -> anyhow::Result<()> {
     fill_occupancy(&client, &pool).await
 }
 
-async fn start(opts: Opts) -> anyhow::Result<()> {
-    let _weather_id = std::env::var("WEATHER_ID");
-    let _weather_secret = std::env::var("WEATHER_SECRET");
+async fn start(opts: StartCmd) -> anyhow::Result<()> {
     let db_uri = opts.database_url;
 
     let client = reqwest::Client::new();
@@ -488,6 +607,13 @@ async fn start(opts: Opts) -> anyhow::Result<()> {
     rocket::build()
         .manage(client)
         .manage(pool)
+        .manage(ClientSecret(opts.weather_secret.into())) // secret and id used for weather
+        .manage(ClientId(opts.weather_id.into()))
+        .manage(TokenState(rocket::tokio::sync::RwLock::new(Token {
+            // invalid token since the start, auth lazily
+            val: "".into(),
+            expiration: Utc::now() - Duration::seconds(60),
+        })))
         .mount(
             "/",
             routes![
@@ -498,7 +624,8 @@ async fn start(opts: Opts) -> anyhow::Result<()> {
                 capacity,
                 connections,
                 coordinates,
-                weather
+                weather,
+                holidays
             ],
         )
         .launch()
