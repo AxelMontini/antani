@@ -85,13 +85,11 @@ export class RequestComponent implements OnInit {
     };
   }
 
-  validateStation(): ValidatorFn {
-    return (control: AbstractControl): ValidationErrors | null => {
-      let statFound: string[] = [];
-      await this.loadStations(control.value)?.then((r) => {
-        
-      });
-
+  async validateStation(): Promise<ValidatorFn> {
+    return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+      let r = await this.loadStations(control.value);
+      console.log(r['stations'].length==0);
+      return r['stations'].length==0 ? {invalid: true} : null;  
     };
   }
 
