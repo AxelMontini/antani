@@ -14,23 +14,27 @@ import { ConnectionResponse } from '../trains/train_interface';
   styleUrls: ['./answer.component.scss'],
 })
 export class AnswerComponent implements OnInit, OnChanges {
-  constructor() {}
+  constructor() { }
 
-  ngOnInit(): void {}
+  ngOnInit(): void { }
 
   /* Request handling */
   @Input() message: Message | undefined;
   /* */
   showMeteo: boolean = false;
   showTrains: boolean = false;
-  isHolyday :boolean = false;
+  isHolyday: boolean = false;
   connections: ConnectionResponse | undefined;
   meteo: any;
-  
+
 
   ngOnChanges(changes: SimpleChanges) {
     if (this.message?.showLoading) {
-      fetch(`/api/holydays?name=${this.message?.to}&date=${this.message?.lastYearDate}`).then(r => r.json()).then(r => {if (r.isHoliday) {this.isHolyday = true;}});
+      const d = new Date(this.message?.lastYearDate);
+      // Date YYYY-mm-dd
+      const date = d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+
+      fetch(`/api/holidays?name=${this.message?.to}&date=${date}`).then(r => r.json()).then(r => { if (r.isHoliday) { this.isHolyday = true; } });
       fetch(
         `/api/connections?from=${this.message?.from}&to=${this.message?.to}&datetime=${this.message?.dateTimeDep}&is_arrival_time=false`
       )
