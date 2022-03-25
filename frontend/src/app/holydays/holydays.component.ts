@@ -16,7 +16,5 @@ export class HolydaysComponent implements OnInit {
   }
 
   ngOnChanges(changes :SimpleChanges) {
-    
-    this.location = this.message?.to;
   }
 }

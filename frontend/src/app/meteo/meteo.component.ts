@@ -7,6 +7,7 @@ import { Message } from '../request/request.component';
   styleUrls: ['./meteo.component.scss']
 })
 export class MeteoComponent implements OnInit {
+
   @Input() message: Message | undefined;
 
   constructor() { }
@@ -15,11 +16,13 @@ export class MeteoComponent implements OnInit {
     
   }
 
-
-  meteo :string = "It's going to be sunny in";
-  meteoIcon = "kom:sunshine-medium";
+  precipitation = "";
+  meteoIcon = "";
+  temperature = '';
   location: string | undefined;
   isHolyday = true;
+  date  :string | undefined = '';
+  rain = '';
 
   meteoIcons: any = [
     "kom:question-mark-medium",
@@ -41,7 +44,21 @@ export class MeteoComponent implements OnInit {
 
 
   ngOnChanges(changes: SimpleChanges) {
-    this.location = this.message?.to;
+    fetch(`/api/weather?date=${this.message?.dateTimeArr}&station=${this.message?.to}`)
+      .then(r => r.json())
+      .then(r => {
+        this.temperature = r.data[0].value;
+        this.meteoIcon = this.meteoIcons[r.data[2].value];
+        this.precipitation = r.data[1].value;
+        this.location = this.message?.to;
+        if (parseFloat(this.precipitation) > 0.1) {
+          this.rain = " and it will be raining, be ready!"
+        }
+        else {
+          this.rain = " and the sun will shine, so trains might be more crowded than usual!"
+        }
+      })
+    
   }
 
 }
