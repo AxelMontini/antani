@@ -47,7 +47,7 @@ export class MeteoComponent implements OnInit {
     fetch(`/api/weather?date=${this.message?.dateTimeArr}&station=${this.message?.to}`)
       .then(r => r.json())
       .then(r => {
-        this.meteoIcon = this.meteoIcons[r.data[2].value];
+        this.meteoIcon = this.meteoIcons[r.data[2].value-100];
         this.temperature = r.data[0].value;
         this.precipitation = r.data[1].value;
         this.location = this.message?.to;
