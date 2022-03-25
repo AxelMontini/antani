@@ -67,6 +67,16 @@ export class TrainsComponent implements OnInit {
     else return '';
   }
 
+  getDur(start?: string | null, end?: string | null): string {
+    if(start && end) {
+      let s = Date.parse(start);
+      let e = Date.parse(end);
+      let dt = new Date(e-s);
+      return this.getTime(dt.toISOString());
+    }
+    return '';
+  }
+
   tabulate(c: Connection): SbbTableDataSource<any> {
 
     console.log(c);
@@ -83,6 +93,7 @@ export class TrainsComponent implements OnInit {
         arrivalTime: this.getTime(s.arrival.arrival),
         departurePlatform: s.departure.station['platform'] || s.departure.prognosis?.['platform'],
         arrivalPlatform: s.arrival.station['platform'] || s.arrival.prognosis?.['platform'],
+        duration: this.getDur(s.departure.departure,s.arrival.arrival),
         occupancy1st: `${s.journey?.capacity1st === null ? '' : s.journey?.capacity1st}`,
         occupancy2nd: `${s.journey?.capacity2nd === null ? '' : s.journey?.capacity1st}`
       })
