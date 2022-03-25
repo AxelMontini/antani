@@ -26,8 +26,8 @@ export type Message = {
 })
 export class RequestComponent implements OnInit {
   date: FormControl = new FormControl(new Date((+new Date)+24*3600*1000), [Validators.required]);
-  ret: FormControl = new FormControl('13:13', [Validators.required]);
   dep: FormControl = new FormControl('12:12', [Validators.required]);
+  ret: FormControl = new FormControl('23:59', [Validators.required]);
 
   // From and to stations helpful stuff
   from: FormControl = new FormControl('Lugano', [Validators.required]);
