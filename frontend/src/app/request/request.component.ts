@@ -1,6 +1,4 @@
 import { Component, OnInit, Output, EventEmitter } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
 
 import {
   FormsModule,
@@ -12,7 +10,6 @@ import {
   ValidationErrors,
   AbstractControl,
 } from '@angular/forms';
-import { AnswerComponent } from '../answer/answer.component';
 
 export type Message = {
   showLoading: boolean;
@@ -28,19 +25,31 @@ export type Message = {
   styleUrls: ['./request.component.scss'],
 })
 export class RequestComponent implements OnInit {
-  date: FormControl = new FormControl(new Date(), [Validators.required]);
+  date: FormControl = new FormControl(new Date(), [
+    Validators.required,
+  ]);
   dep: FormControl = new FormControl('', [
     Validators.required,
+    this.validateTimeFormat(),
     this.validateTime(() => this.date.value),
   ]);
   ret: FormControl = new FormControl('', [
     Validators.required,
+    this.validateTimeFormat(),
     this.validateTime(() => this.depDatetime),
   ]);
 
+  tryingSend = false;
+
   // From and to stations helpful stuff
-  from: FormControl = new FormControl('', [Validators.required, this.validateStation]);
-  to: FormControl = new FormControl('', [Validators.required, this.validateStation]);
+  from: FormControl = new FormControl('', [
+    Validators.required,
+    this.validateStation,
+  ]);
+  to: FormControl = new FormControl('', [
+    Validators.required,
+    this.validateStation,
+  ]);
 
   defaultOptions: string[] = [
     'Zurich',
@@ -53,6 +62,7 @@ export class RequestComponent implements OnInit {
     'Thun',
   ];
 
+
   validateTime(dateGetter: () => Date): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       const forbidden =
@@ -62,14 +72,25 @@ export class RequestComponent implements OnInit {
     };
   }
 
+  validateTimeFormat(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      let time = control.value.split(':');
+      if (time.length != 2) return { invalid: true };
+      let hour = parseInt(time[0]);
+      if (isNaN(hour) || hour < 0 || hour > 23) return { invalid: true };
+      let minute = parseInt(time[1]);
+      if (isNaN(minute) || minute < 0 || minute > 59) return { invalid: true };
+      return null;
+    };
+  }
+
   validateStation(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       let statFound: string[] = [];
-      this.loadStations(control.value,statFound);
-      if(statFound.length==0) {
-        return { stationNotFound: true };
-      }
-      else {
+      this.loadStations(control.value, statFound);
+      if (statFound.length == 0) {
+        return { valid: false };
+      } else {
         return null;
       }
     };
@@ -82,12 +103,12 @@ export class RequestComponent implements OnInit {
 
   autoCompleteFrom() {
     this.loadStations(this.from.value, this.optionsFrom);
-    if(this.optionsFrom.length==0) this.optionsFrom = this.defaultOptions;
+    if (this.optionsFrom.length == 0) this.optionsFrom = this.defaultOptions;
   }
 
   autoCompleteTo() {
     this.loadStations(this.to.value, this.optionsTo);
-    if(this.optionsTo.length==0) this.optionsTo = this.defaultOptions;
+    if (this.optionsTo.length == 0) this.optionsTo = this.defaultOptions;
   }
 
   loadStations(str: string, stationFound: string[]) {
@@ -130,6 +151,7 @@ export class RequestComponent implements OnInit {
   }
 
   submit(): void {
+    console.log(this.date.value);
     if (
       this.depTime.valid &&
       this.retTime.valid &&

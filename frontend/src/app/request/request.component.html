@@ -2,12 +2,16 @@
 	<div class="from-to-container">
 		<sbb-form-field label="From">
 			<input sbbInput [formControl] = "from" [sbbAutocomplete]="autoFrom" (keyup)="autoCompleteFrom()"/>
+			<sbb-error *ngIf="from.errors?.['required']">Departure station is required.</sbb-error>
+			<sbb-error *ngIf="from.errors?.['invalid']">Unknown station.</sbb-error>
 		</sbb-form-field>
 		<sbb-autocomplete #autoFrom="sbbAutocomplete">
 			<sbb-option *ngFor="let option of optionsFrom" [value]="option">{{ option }}</sbb-option>
 		</sbb-autocomplete>
 		<sbb-form-field label="To">
 			<input sbbInput [formControl] = "to" [sbbAutocomplete]="autoTo" (keyup)="autoCompleteTo()"/>
+			<sbb-error *ngIf="to.errors?.['required']">Destination is required.</sbb-error>
+			<sbb-error *ngIf="to.errors?.['invalid']">Unknown destination.</sbb-error>
 		</sbb-form-field>
 		<sbb-autocomplete #autoTo="sbbAutocomplete">
 			<sbb-option *ngFor="let option of optionsTo" [value]="option">{{ option }}</sbb-option>
@@ -19,23 +23,25 @@
 			<sbb-datepicker arrows>
 			<input sbbInput sbbDateInput [formControl]="date" [min]="minDate"/>
 			</sbb-datepicker>
+			<sbb-error *ngIf="date.errors?.['required']">Date is  required.</sbb-error>
 		</sbb-form-field>
 		<div class="time-container">
 			<sbb-form-field label="Departure" class="dep">
 				<input sbbInput sbbTimeInput [formControl]="dep" />
+				<sbb-error *ngIf="dep.errors?.['required']">Departure time is  required.</sbb-error>
+				<sbb-error *ngIf="dep.errors?.['invalid'] && !dep.errors?.['required']">Departure time is invalid.</sbb-error>
+				<sbb-error *ngIf="dep.errors?.['past'] ">Date is in the past</sbb-error>
 			</sbb-form-field>
+			
 			<sbb-form-field label="Return" class="ret">
 				<input sbbInput sbbTimeInput [formControl]="ret" />
+				<sbb-error *ngIf="ret.errors?.['required']">Return time is  required.</sbb-error>
+				<sbb-error *ngIf="ret.errors?.['invalid'] && !ret.errors?.['required']">Return time is invalid.</sbb-error>
+				<sbb-error *ngIf="ret.errors?.['past'] ">Return must be after departure</sbb-error>
 			</sbb-form-field>
 		</div>
 	</div>
-	<sbb-error *ngIf="dep.errors?.['required']">Departure is  required.</sbb-error>
-	<sbb-error *ngIf="ret.errors?.['required']">Return is  required.</sbb-error>
-	<sbb-error *ngIf="ret.errors?.['invalid']">Return time is  invalid.</sbb-error>
-	<sbb-error *ngIf="dep.errors?.['invalid']">Departure time is  invalid.</sbb-error>
-	<sbb-error *ngIf="ret.errors?.['invalid']">Return time is  invalid.</sbb-error>
-	<sbb-error *ngIf="dep.errors?.['past']">Date is in the past</sbb-error>
-	<sbb-error *ngIf="ret.errors?.['past']">Return must be after departure</sbb-error>
+	
 	<!-- <sbb-error *ngIf="datetime_past">Time is in the past.</sbb-error> -->
 	<button sbb-button (click)="submit()" class="submit" style="max-width:100% !important;margin-top: -1vh;">Let's bike!</button>
 </form>
