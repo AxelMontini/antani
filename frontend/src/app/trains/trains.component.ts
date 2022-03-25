@@ -14,8 +14,8 @@ interface Row {
   departurePlatform?: string | null | unknown,
   arrivalPlatform?: string | null | unknown,
   duration?:string | null,
-  occupancy1st?: string | null,
-  occupancy2nd?: string | null
+  occupancy1stIcon?: string | null,
+  occupancy2ndIcon?: string | null
 }
 
 @Component({
@@ -94,8 +94,8 @@ export class TrainsComponent implements OnInit {
         departurePlatform: s.departure.station['platform'] || s.departure.prognosis?.['platform'],
         arrivalPlatform: s.arrival.station['platform'] || s.arrival.prognosis?.['platform'],
         duration: this.getDur(s.departure.departure,s.arrival.arrival),
-        occupancy1st: `${s.journey?.capacity1st === null ? '' : s.journey?.capacity1st}`,
-        occupancy2nd: `${s.journey?.capacity2nd === null ? '' : s.journey?.capacity1st}`
+        occupancy1stIcon: "fpl:utilization-low",
+        occupancy2ndIcon: "fpl:utilization-medium"
       })
     })
 

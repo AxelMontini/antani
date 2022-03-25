@@ -73,7 +73,9 @@
     
         <ng-container sbbColumnDef="occupancy">
           <th sbb-header-cell *sbbHeaderCellDef id="occupancy">Occupancy</th>
-          <td sbb-cell *sbbCellDef="let element">1. {{ element.occupancy1st===null ? '' : element.occupancy1st }} 2. {{ element.occupancy2nd }}</td>
+          <td sbb-cell *sbbCellDef="let element"><span *ngIf="element.occupancy1stIcon !== undefined">1. <sbb-icon 
+            [svgIcon]="element.occupancy1stIcon"></sbb-icon></span> <span *ngIf="element.occupancy2ndIcon !== undefined">2. <sbb-icon 
+              [svgIcon]="element.occupancy2ndIcon"></sbb-icon></span></td>
         </ng-container>   
       
         <tr sbb-header-row *sbbHeaderRowDef="displayedColumns"></tr>
