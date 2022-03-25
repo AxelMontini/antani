@@ -11,6 +11,7 @@ import { SbbAccordionModule } from '@sbb-esta/angular/accordion';
 import { SbbNotificationModule } from '@sbb-esta/angular/notification';
 import { SbbAutocompleteModule } from '@sbb-esta/angular/autocomplete';
 import {SbbSearchModule} from '@sbb-esta/angular/search';
+import {SbbTableModule} from '@sbb-esta/angular/table';
 
 const modules = [
   SbbSearchModule,
@@ -25,6 +26,7 @@ const modules = [
   SbbInputModule,
   SbbAccordionModule,
   SbbAutocompleteModule,
+  SbbTableModule
 ];
 
 @NgModule({

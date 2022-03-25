@@ -1,3 +1,5 @@
-<sbb-loading mode="small" aria-valuetext="Loading, please wait" *ngIf="message.showLoading"></sbb-loading>
-<app-meteo *ngIf="showMeteo"></app-meteo>
-<app-trains *ngIf="showTrains"></app-trains>
+<sbb-loading mode="small" aria-valuetext="Loading, please wait" *ngIf="message?.showLoading"></sbb-loading>
+
+<app-holydays [message]="message" *ngIf="isHolyday" ></app-holydays>
+<app-meteo *ngIf="showMeteo" [message]="message"></app-meteo>
+<app-trains *ngIf="showTrains" [connections]="connections"></app-trains>

@@ -13,13 +13,7 @@ export class RequestAnswerComponentComponent implements OnInit {
 
   constructor() { }
 
-  message: Message = {
-    showLoading: false,
-    from: '',
-    to:'',
-    dateTimeDep: '',
-    dateTimeArr: ''
-  }
+  message: Message  | undefined;
 
   receiveMessage($event :any) {
     this.message = $event;
