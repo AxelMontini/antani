@@ -8,6 +8,14 @@ sbb-form-field {
     margin-right: 20px;
 }
 
+:host .swap-button {
+    transform:translateY(25px);
+    margin-right: 15px;
+}
+
+:host .swap-button:hover {
+    color: red;
+}
 
 :host .date-time-container, .submit-container, .form-container, .from-to-container {
     display: flex;
@@ -41,3 +49,4 @@ sbb-form-field {
         transform: translateY(31px);
     }
 }
+
