@@ -292,13 +292,6 @@ async fn connections(
         cr.connections
             .into_iter()
             // Filter only connections whose first section is after or same as given time
-            .filter(|c| {
-                c.sections
-                    .first()
-                    .and_then(|f| f.departure.departure)
-                    .map(|dep| dep >= datetime)
-                    .unwrap_or(false)
-            })
             .map(|c| async {
                 FConnection {
                     score: algorithm(client, db, &c).await,
