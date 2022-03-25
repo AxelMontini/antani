@@ -31,7 +31,7 @@ export class RequestComponent implements OnInit {
 
   // From and to stations helpful stuff
   from: FormControl = new FormControl('Lugano', [Validators.required]);
-  to: FormControl = new FormControl('Zürich', [Validators.required]);
+  to: FormControl = new FormControl('Zug', [Validators.required]);
 
   defaultOptions: string[] = [
     'Zurich',
@@ -108,7 +108,7 @@ export class RequestComponent implements OnInit {
         to: this.to.value,
         dateTimeDep: this.dep_datetime.toISOString(),
         dateTimeArr: this.ret_datetime.toISOString(),
-        lastYearDate: (new Date(+this.dep_datetime-31536000)).toISOString(),
+        lastYearDate: (new Date(+this.dep_datetime-31536000000)).toISOString(),
       };
       this.messageEvent.emit(message);
       /* */

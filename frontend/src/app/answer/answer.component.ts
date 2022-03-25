@@ -41,8 +41,8 @@ export class AnswerComponent implements OnInit, OnChanges {
         .then((r) => r.json())
         .then((r) => this.connections = r.connections)
         .then((_) => ((this.message) ? this.message.showLoading = false : null))
-        .then((_) => (this.showTrains = true));
-      /* this.showMeteo = true; */
+        .then((_) => (this.showTrains = true))
+        .then(_ =>this.showMeteo = true);
     }
   }
 }
