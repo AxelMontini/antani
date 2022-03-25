@@ -171,6 +171,7 @@ pub struct Section {
 
 #[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct Journey {
+    /// Equivalent to train number in the db
     pub name: String,
     pub category: String,
     pub categoryCode: Option<u32>,

@@ -1,8 +1,9 @@
-use std::{ops::Deref, sync::Arc};
+use std::{cmp::Ordering, ops::Deref, sync::Arc};
 
 use anyhow::Context;
 use api::{
-    Connection, ConnectionRequest, ConnectionResponse, LocationRequest, CONNECTIONS, LOCATIONS,
+    Connection, ConnectionRequest, ConnectionResponse, LocationRequest, Section, CONNECTIONS,
+    LOCATIONS,
 };
 use chrono::{DateTime, Duration, FixedOffset, NaiveDate, Utc};
 use futures::{StreamExt, TryStreamExt};
@@ -158,10 +159,10 @@ async fn abbrev(
 async fn get_abbrev(db: &PgPool, station: &str) -> anyhow::Result<Option<String>> {
     let query = sqlx::query!(r#"SELECT abbrev FROM stations WHERE name=$1"#, station);
     let response = query
-        .fetch_one(db)
+        .fetch_optional(db)
         .await
         .context("fetch abbrev of station")?;
-    Ok(response.abbrev)
+    Ok(response.and_then(|r| r.abbrev))
 }
 
 #[derive(Serialize)]
@@ -201,14 +202,16 @@ async fn get_capacity(
         trainNr
     );
     let response = query
-        .fetch_one(db.deref())
+        .fetch_optional(db.deref())
         .await
         .context("fetching train capacity")?;
 
-    Ok(response.max.map(|max| Capacity {
-        date,
-        trainNr,
-        capacity: max,
+    Ok(response.and_then(|r| {
+        r.max.map(|max| Capacity {
+            date,
+            trainNr,
+            capacity: max,
+        })
     }))
 }
 
@@ -249,7 +252,7 @@ struct FConnection {
 // Get connections for the given addresses
 #[get("/connections?<from>&<to>&<datetime>&<is_arrival_time>")]
 async fn connections(
-    _db: &State<PgPool>,
+    db: &State<PgPool>,
     client: &State<Client>,
     from: String,
     to: String,
@@ -282,17 +285,72 @@ async fn connections(
     // Try to sort connections based on bike places availability
     //let algorithm = |a| 1.0;
 
-    Ok(Json(FConnections {
-        connections: cr
-            .connections
-            .into_iter()
-            .take(5)
-            .map(|c| FConnection {
-                score: 1.0,
-                connection: c,
-            })
-            .collect(),
+    let mut fconns: Vec<_> = futures::future::join_all(cr.connections.into_iter().map(|c| async {
+        FConnection {
+            score: algorithm(client, db, &c).await,
+            connection: c,
+        }
     }))
+    .await;
+
+    // sort descending
+    fconns.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
+
+    let connections = fconns.into_iter().take(6).collect();
+
+    Ok(Json(FConnections { connections }))
+}
+
+async fn eval<'e>(client: &'e Client, db: &'e PgPool, sect: &'e Section) -> anyhow::Result<f32> {
+    let train_nr = sect.journey.as_ref().map(|j| j.name.parse()).transpose()?; // Train number
+    let date = sect.departure.departure;
+
+    let (train_nr, date) = match (train_nr, date) {
+        (Some(train_nr), Some(date)) => (train_nr, date),
+        _ => return anyhow::Result::<f32>::Ok(0.0),
+    };
+
+    let cap = get_capacity(db, date.naive_local().date(), train_nr).await?;
+
+    let cap = match cap {
+        Some(cap) => cap,
+        _ => return Ok(0.0),
+    };
+
+    let occ = occupancy(client, db, train_nr, date.naive_local().date()).await?;
+    let stops = get_stops(client, db, train_nr).await?;
+    let stop_abbrev = get_abbrev(db, &sect.departure.station.name).await?;
+
+    let stop_abbrev = match stop_abbrev {
+        None => return Ok(0.0),
+        Some(abbrev) => abbrev,
+    };
+
+    // Get occupancy of departure stop
+    let occupancy = *stops
+        .iter()
+        .zip(occ.iter())
+        .find(|&(s, _)| s == &stop_abbrev)
+        .unwrap()
+        .1; // can't fail, right?
+
+    let ratio = occupancy as f32 / cap.capacity as f32;
+
+    Ok(ratio)
+}
+
+/// Iterate over all sections and compute the score of each one. Then return the sum. Returns
+/// `0.0` if some required information can't be found on the db or api.
+async fn algorithm(client: &Client, db: &PgPool, conn: &Connection) -> f32 {
+    let sum_scores = futures::stream::iter(conn.sections.iter())
+        .map(Result::Ok)
+        .try_fold(0.0, |acc, s| async move {
+            eval(client, db, s).await.map(|s| s + acc)
+        })
+        .await
+        .unwrap_or(0.0);
+
+    sum_scores
 }
 
 #[derive(Serialize)]
@@ -436,7 +494,12 @@ async fn weather(
         url, date, params, coord.lat, coord.long
     );
 
-    let meteo_resp = client.post(req).bearer_auth(&token.val).send().await.unwrap();
+    let meteo_resp = client
+        .post(req)
+        .bearer_auth(&token.val)
+        .send()
+        .await
+        .unwrap();
     let raw_array: serde_json::Value = meteo_resp.json().await.unwrap();
     let mut acc = vec![];
     let j = raw_array.get("data").unwrap();
@@ -476,6 +539,7 @@ struct Data {
     value: f64,
 }
 
+// Broken: DO NOT USE
 async fn fill_occupancy(client: &Client, db: &PgPool) -> anyhow::Result<()> {
     let all_travels = sqlx::query!(
         "(SELECT connectionDate, trainNr FROM Dataset GROUP BY connectionDate, trainNr) EXCEPT (SELECT connectionDate, trainNr FROM Occupancy)"
@@ -505,7 +569,59 @@ async fn fill_occupancy(client: &Client, db: &PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Obtain occupancy data for a train (compute it if necessary).
+/// A value is computed if not already in the db, then it is stored.
+/// If available, it's fetched from the db.
 async fn occupancy(
+    client: &Client,
+    db: &PgPool,
+    trainNr: i32,
+    date: NaiveDate,
+) -> anyhow::Result<Vec<i32>> {
+    let query = sqlx::query!(
+        "SELECT bikes FROM Occupancy WHERE connectionDate=$1 AND trainNr=$2 LIMIT 1",
+        date,
+        trainNr
+    );
+
+    let rec = query
+        .fetch_optional(db)
+        .await
+        .context("fetching occupancy data or null")?;
+
+    match rec {
+        Some(rec) => Ok(rec.bikes),
+        // Compute and insert
+        None => {
+            let bikes = compute_occupancy(client, db, trainNr, date)
+                .await
+                .context("computing occupancy")?;
+
+            let q = sqlx::query!(
+                "INSERT INTO Occupancy (bikes, trainNr, connectionDate) VALUES ($1, $2, $3)",
+                &bikes[..],
+                trainNr,
+                date
+            )
+            .execute(db)
+            .await
+            .context("inserting computed occupancy in db")?;
+
+            if q.rows_affected() != 1 {
+                //TODO: What to do now?
+            }
+
+            Ok(bikes)
+        }
+    }
+}
+
+/// Compute a train's occupancy along all stops. Returns an array containing the bike occupancy at the departure of each stop (excluded the last stop).
+/// Given a train with stops [A, B, C, D] and occupancy [1, 2, 3], then the train departs from A with 1 bike,
+/// from B with 2 and from C with 3.
+///
+/// The array lacks the last stop, as it's the last stop and the train doesn't depart from it.
+async fn compute_occupancy(
     client: &Client,
     db: &PgPool,
     trainNr: i32,
