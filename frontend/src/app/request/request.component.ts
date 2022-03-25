@@ -88,12 +88,10 @@ export class RequestComponent implements OnInit {
   validateStation(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       let statFound: string[] = [];
-      this.loadStations(control.value, statFound);
-      if (statFound.length == 0) {
-        return { valid: false };
-      } else {
-        return null;
-      }
+      await this.loadStations(control.value)?.then((r) => {
+        
+      });
+
     };
   }
 
@@ -103,22 +101,21 @@ export class RequestComponent implements OnInit {
   ngOnInit() {}
 
   autoCompleteFrom() {
-    this.loadStations(this.from.value, this.optionsFrom);
-    if (this.optionsFrom.length == 0) this.optionsFrom = this.defaultOptions;
+    this.loadStations(this.from.value)?.then((r) => {
+      if(r['stations'].length==0) this.optionsFrom = this.defaultOptions;
+      else this.optionsFrom = r['stations']
+    });
   }
 
   autoCompleteTo() {
-    this.loadStations(this.to.value, this.optionsTo);
-    if (this.optionsTo.length == 0) this.optionsTo = this.defaultOptions;
+    this.loadStations(this.to.value)?.then((r) => {
+      if(r['stations'].length==0) this.optionsTo = this.defaultOptions;
+      else this.optionsTo = r['stations']
+    });
   }
 
-  loadStations(str: string, stationFound: string[]) {
-    if (str != '')
-      fetch(`/api/stations?start=${str}`)
-        .then((r) => r.json())
-        .then((r) => {
-          stationFound = r['stations'];
-        });
+  loadStations(str: string): Promise<any> | null {
+     return (str != '') ? fetch(`/api/stations?start=${str}`).then((r) => r.json()) : null;
   }
 
   // End
