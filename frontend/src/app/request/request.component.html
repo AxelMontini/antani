@@ -31,7 +31,12 @@
 	</div>
 	<sbb-error *ngIf="depTime.invalid">Invalid departure time.</sbb-error>
 	<sbb-error *ngIf="retTime.invalid">Invalid return time.</sbb-error>
+	<sbb-error *ngIf="dep.errors?.['invalid']">Departure time is  invalid.</sbb-error>
+	<sbb-error *ngIf="ret.errors?.['invalid']">Return time is  invalid.</sbb-error>
+	<sbb-error *ngIf="dep.errors?.['invalid']">Departure time is  invalid.</sbb-error>
+	<sbb-error *ngIf="ret.errors?.['invalid']">Return time is  invalid.</sbb-error>
 	<sbb-error *ngIf="dep.errors?.['past']">Date is in the past</sbb-error>
+	<sbb-error *ngIf="ret.errors?.['past']">Return must be after departure</sbb-error>
 	<!-- <sbb-error *ngIf="datetime_past">Time is in the past.</sbb-error> -->
 	<button sbb-button (click)="submit()" class="submit" style="max-width:100% !important;margin-top: -1vh;">Let's bike!</button>
 </form>

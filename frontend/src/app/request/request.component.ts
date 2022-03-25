@@ -39,8 +39,8 @@ export class RequestComponent implements OnInit {
   ]);
 
   // From and to stations helpful stuff
-  from: FormControl = new FormControl('', [Validators.required]);
-  to: FormControl = new FormControl('', [Validators.required]);
+  from: FormControl = new FormControl('', [Validators.required, this.validateStation]);
+  to: FormControl = new FormControl('', [Validators.required, this.validateStation]);
 
   defaultOptions: string[] = [
     'Zurich',
@@ -62,12 +62,17 @@ export class RequestComponent implements OnInit {
     };
   }
 
-
-
   validateStation(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
-      
-    }
+      let statFound: string[] = [];
+      this.loadStations(control.value,statFound);
+      if(statFound.length==0) {
+        return { stationNotFound: true };
+      }
+      else {
+        return null;
+      }
+    };
   }
 
   optionsFrom: string[] = this.defaultOptions;
@@ -83,17 +88,15 @@ export class RequestComponent implements OnInit {
     else this.optionsFrom = this.defaultOptions;
   }
 
-  autoCompleteTo() {
-    
-    
-  }
+  autoCompleteTo() {}
 
-  loadStations(str: string) {
-    if (this.to.value != '')
-    fetch(`/api/stations/${this.to.value}`)
-      .then((r) => r.json())
-      .then((r) => (this.optionsTo = r['stations']));
-      else this.optionsTo = this.defaultOptions;
+  loadStations(str: string, stationFound: string[]) {
+    if (str != '')
+      fetch(`/api/stations/${str}`)
+        .then((r) => r.json())
+        .then((r) => {
+          stationFound = r['stations'];
+        });
   }
 
   // End
