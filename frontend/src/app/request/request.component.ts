@@ -114,7 +114,7 @@ export class RequestComponent implements OnInit {
 
   loadStations(str: string, stationFound: string[]) {
     if (str != '')
-      fetch(`/api/stations/${str}`)
+      fetch(`/api/stations?start=${str}`)
         .then((r) => r.json())
         .then((r) => {
           stationFound = r['stations'];
