@@ -34,6 +34,10 @@ sbb-form-field {
     justify-content: space-between;
 }
 
+:host .ret {
+     display: none;
+}
+
 @media screen and (max-width: 768px) {
     :host .from-to-container {
         flex-wrap: wrap;
