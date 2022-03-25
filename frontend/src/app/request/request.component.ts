@@ -14,8 +14,9 @@ export type Message = {
   showLoading: boolean,
   from: string,
   to:string,
-  dateTimeDep: string
-  dateTimeArr: string
+  dateTimeDep: string,
+  dateTimeArr: string,
+  lastYearDate: string
 }
 
 @Component({
@@ -24,13 +25,13 @@ export type Message = {
   styleUrls: ['./request.component.scss'],
 })
 export class RequestComponent implements OnInit {
-  date: FormControl = new FormControl(new Date(), [Validators.required]);
-  ret: FormControl = new FormControl('', [Validators.required]);
-  dep: FormControl = new FormControl('', [Validators.required]);
+  date: FormControl = new FormControl(new Date((+new Date)+24*3600*1000), [Validators.required]);
+  ret: FormControl = new FormControl('13:13', [Validators.required]);
+  dep: FormControl = new FormControl('12:12', [Validators.required]);
 
   // From and to stations helpful stuff
-  from: FormControl = new FormControl('', [Validators.required]);
-  to: FormControl = new FormControl('', [Validators.required]);
+  from: FormControl = new FormControl('Lugano', [Validators.required]);
+  to: FormControl = new FormControl('Zürich', [Validators.required]);
 
   defaultOptions: string[] = [
     'Zurich',
@@ -107,6 +108,7 @@ export class RequestComponent implements OnInit {
         to: this.to.value,
         dateTimeDep: this.dep_datetime.toISOString(),
         dateTimeArr: this.ret_datetime.toISOString(),
+        lastYearDate: (new Date(+this.dep_datetime-31536000)).toISOString(),
       };
       this.messageEvent.emit(message);
       /* */

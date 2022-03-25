@@ -4,27 +4,81 @@
 
 :host .header {
   padding: 10px;
-  font-size: 11px;
+  font-size: 10vw;
   color: grey;
-  display: grid;
-  width: 100%;
-  grid-template-columns: 30% 20% 20% 10% 20%;
 }
 
-:host .connection-header-content {
+:host .connection-header-content, :host .header {
   font-size: 15px;
   margin: 0;
   display: grid;
   width: 100%;
-  grid-template-columns: 30% 20% 20% 10% 20%;
+  grid-template-columns: 42% 10% 13% 15% 20%;
   grid-template-areas:
-    "name duration changes occupation action"
+    "name duration changes occupancy action"
     "time";
 }
 
-:host .connection-header-content .time {
+:host .name {
+  grid-area: "name";
+}
+
+:host .duration {
+  grid-area: "duration";
+}
+:host .changes {
+  grid-area: "changes";
+}
+
+:host .occupancy {
+  grid-area: "occupancy";
+}
+
+:host .action {
+  grid-area: "action";
+}
+
+:host .time {
   grid-area: "time";
+}
+
+
+:host .connection-header-content .time {
   font-size: 13px;
   font-weight: bolder;
 }
 
+:host .button {
+  vertical-align: middle;
+}
+
+:host .arrow-next-stop {
+  vertical-align: middle;
+}
+
+@media screen and(max-width:850px) {
+  :host .hideOnMobile {
+    display: none;
+  }
+
+  .accordion {
+    padding-top: 20px;
+  }
+
+  :host .connection-header-content, :host .header {
+    grid-template-columns: 50% 50%;
+    grid-template-areas:
+      "name duration"
+      "occupancy time"
+      "action action";
+  }
+
+  :host .action {
+    width: 100%;
+  }
+
+  :host .duration {
+    text-align: center;
+  }
+
+}
