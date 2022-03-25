@@ -79,6 +79,12 @@ export class RequestComponent implements OnInit {
   @Output() messageEvent = new EventEmitter<Message>();
   /*   End of sending */
 
+  handleClick() {
+    let toTemp = this.to.value;
+    this.to.setValue(this.from.value);
+    this.from.setValue(toTemp);
+  }
+
   get dep_time(): Time {
     return new Time(this.dep.value);
   }

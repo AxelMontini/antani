@@ -6,6 +6,7 @@
 		<sbb-autocomplete #autoFrom="sbbAutocomplete">
 			<sbb-option *ngFor="let option of optionsFrom" [value]="option">{{ option }}</sbb-option>
 		</sbb-autocomplete>
+		<sbb-icon svgIcon="kom:arrow-change-horizontal-medium" class="swap-button" (click)="handleClick()"></sbb-icon>
 		<sbb-form-field label="To">
 			<input sbbInput [formControl] = "to" [sbbAutocomplete]="autoTo" (keyup)="autoCompleteTo()"/>
 		</sbb-form-field>
