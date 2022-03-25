@@ -249,8 +249,9 @@ struct FConnection {
     connection: Connection,
 }
 
+/// Default 10
 // Get connections for the given addresses
-#[get("/connections?<from>&<to>&<datetime>&<is_arrival_time>")]
+#[get("/connections?<from>&<to>&<datetime>&<is_arrival_time>&<max>")]
 async fn connections(
     db: &State<PgPool>,
     client: &State<Client>,
@@ -258,7 +259,9 @@ async fn connections(
     to: String,
     datetime: String,
     is_arrival_time: bool,
+    max: Option<usize>,
 ) -> Result<Json<FConnections>, status::BadRequest<String>> {
+    let max = max.unwrap_or(10);
     // We assume that bike=true since it's the website for bicycles
     let datetime = DateTime::<FixedOffset>::parse_from_rfc3339(datetime.as_str())
         .map_err(|e| e.to_string())
@@ -285,18 +288,30 @@ async fn connections(
     // Try to sort connections based on bike places availability
     //let algorithm = |a| 1.0;
 
-    let mut fconns: Vec<_> = futures::future::join_all(cr.connections.into_iter().map(|c| async {
-        FConnection {
-            score: algorithm(client, db, &c).await,
-            connection: c,
-        }
-    }))
+    let mut fconns: Vec<_> = futures::future::join_all(
+        cr.connections
+            .into_iter()
+            // Filter only connections whose first section is after or same as given time
+            .filter(|c| {
+                c.sections
+                    .first()
+                    .and_then(|f| f.departure.departure)
+                    .map(|dep| dep >= datetime)
+                    .unwrap_or(false)
+            })
+            .map(|c| async {
+                FConnection {
+                    score: algorithm(client, db, &c).await,
+                    connection: c,
+                }
+            }),
+    )
     .await;
 
     // sort descending
     fconns.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
 
-    let connections = fconns.into_iter().take(6).collect();
+    let connections = fconns.into_iter().take(max).collect();
 
     Ok(Json(FConnections { connections }))
 }
