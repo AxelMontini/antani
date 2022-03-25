@@ -13,6 +13,7 @@ interface Connection {
   templateUrl: './trains.component.html',
   styleUrls: ['./trains.component.scss']
 })
+
 export class TrainsComponent implements OnInit {
   trains: Connection[] = [
     {
@@ -39,6 +40,7 @@ export class TrainsComponent implements OnInit {
   }
 
   ngOnInit(): void {
+
   }
 
 }
