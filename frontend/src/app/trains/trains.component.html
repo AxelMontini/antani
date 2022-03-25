@@ -25,21 +25,60 @@
         <div class="action"><button sbb-button>
             <sbb-icon svgIcon="kom:bicycle-large" class="button"></sbb-icon>
           </button></div>
-        <div class="time">{{ connection.connection.sections[0].departure.departure.departure }}</div>
+        <div class="time">{{ getTime(connection.connection.sections[0].departure.departure) }} - {{ getTime(connection.connection.sections[connection.connection.sections.length - 1].arrival.arrival) }}</div>
       </div>
     </sbb-expansion-panel-header>
 
+    <sbb-table-wrapper>
+      <table sbb-table [dataSource]="tabulate(connection.connection)">
+        <ng-container sbbColumnDef="product">
+          <th sbb-header-cell *sbbHeaderCellDef id="product">Train</th>
+          <td sbb-cell *sbbCellDef="let element">{{ element.product }}</td>
+        </ng-container>
     
-    <!-- <sbb-table-wrapper>
-      <table sbb-table [dataSource]="{{ tabulate() }}">
-        <sbb-text-column name="columnOne"></sbb-text-column>
-        <sbb-text-column name="columnTwo"></sbb-text-column>
-        <sbb-text-column name="columnThree"></sbb-text-column>
-        <sbb-text-column name="columnFour"></sbb-text-column>
-        <sbb-text-column name="columnFive"></sbb-text-column>
+        <ng-container sbbColumnDef="departureStation" groupWithNext>
+          <th sbb-header-cell *sbbHeaderCellDef id="departureStation">Departure station</th>
+          <td sbb-cell *sbbCellDef="let element">{{ element.departureStation }}</td>
+        </ng-container>
+    
+        <ng-container sbbColumnDef="arrivalStation" groupWithNext>
+          <th sbb-header-cell *sbbHeaderCellDef id="arrivalStation">Arrival station</th>
+          <td sbb-cell *sbbCellDef="let element">{{ element.arrivalStation }}</td>
+        </ng-container>
+    
+        <ng-container sbbColumnDef="departureTime">
+          <th sbb-header-cell *sbbHeaderCellDef id="departureTime">Departure time</th>
+          <td sbb-cell *sbbCellDef="let element">{{ element.departureTime }}</td>
+        </ng-container>
+    
+        <ng-container sbbColumnDef="arrivalTime">
+          <th sbb-header-cell *sbbHeaderCellDef id="arrivalTime">Arrival time</th>
+          <td sbb-cell *sbbCellDef="let element">{{ element.arrivalTime }}</td>
+        </ng-container>
+
+        <ng-container sbbColumnDef="departurePlatform">
+          <th sbb-header-cell *sbbHeaderCellDef id="departurePlatform">Departure platform</th>
+          <td sbb-cell *sbbCellDef="let element">{{ element.departurePlatform }}</td>
+        </ng-container>
+    
+        <ng-container sbbColumnDef="arrivalPlatform" groupWithNext>
+          <th sbb-header-cell *sbbHeaderCellDef id="arrivalPlatform">Arrival platform</th>
+          <td sbb-cell *sbbCellDef="let element">{{ element.arrivalPlatform }}</td>
+        </ng-container>
+    
+        <ng-container sbbColumnDef="duration" groupWithNext>
+          <th sbb-header-cell *sbbHeaderCellDef id="duration">Duration</th>
+          <td sbb-cell *sbbCellDef="let element">{{ element.duration }}</td>
+        </ng-container>
+    
+        <ng-container sbbColumnDef="occupancy">
+          <th sbb-header-cell *sbbHeaderCellDef id="occupancy">Occupancy</th>
+          <td sbb-cell *sbbCellDef="let element">1. {{ element.occupancy1st===null ? '' : element.occupancy1st }} 2. {{ element.occupancy2nd }}</td>
+        </ng-container>   
+      
         <tr sbb-header-row *sbbHeaderRowDef="displayedColumns"></tr>
         <tr sbb-row *sbbRowDef="let row; columns: displayedColumns"></tr>
         </table>
-    </sbb-table-wrapper>-->
+    </sbb-table-wrapper>
   </sbb-expansion-panel> 
 </sbb-accordion>
