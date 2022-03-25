@@ -293,7 +293,25 @@ async fn connections(
     }))
     .await;
 
-    // sort descending
+    let pref_dep_time = datetime;
+
+    // only return trains around the selected time
+
+    let mut fconns = fconns
+        .into_iter()
+        .filter(|e| {
+            let tmp: &Connection = &e.connection;
+            let a = &tmp.from;
+            match a.departure {
+                Some(s) => {
+                    let diff = s.timestamp() - pref_dep_time.timestamp();
+                    println!("diff: {}", diff);
+                    return diff > -1800 && diff <= 6000;
+                }
+                None => false,
+            }
+        })
+        .collect::<Vec<FConnection>>();
     fconns.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
 
     let connections = fconns.into_iter().take(6).collect();
@@ -301,20 +319,24 @@ async fn connections(
     Ok(Json(FConnections { connections }))
 }
 
-async fn eval<'e>(client: &'e Client, db: &'e PgPool, sect: &'e Section) -> anyhow::Result<f32> {
+async fn eval<'e>(
+    client: &'e Client,
+    db: &'e PgPool,
+    sect: &'e Section,
+) -> anyhow::Result<(i32, i32)> {
     let train_nr = sect.journey.as_ref().map(|j| j.name.parse()).transpose()?; // Train number
     let date = sect.departure.departure;
 
     let (train_nr, date) = match (train_nr, date) {
         (Some(train_nr), Some(date)) => (train_nr, date),
-        _ => return anyhow::Result::<f32>::Ok(0.0),
+        _ => return anyhow::Result::<(i32, i32)>::Ok((0, 0)),
     };
 
     let cap = get_capacity(db, date.naive_local().date(), train_nr).await?;
 
     let cap = match cap {
         Some(cap) => cap,
-        _ => return Ok(0.0),
+        _ => return Ok((0, 0)),
     };
 
     let occ = occupancy(client, db, train_nr, date.naive_local().date()).await?;
@@ -322,7 +344,7 @@ async fn eval<'e>(client: &'e Client, db: &'e PgPool, sect: &'e Section) -> anyh
     let stop_abbrev = get_abbrev(db, &sect.departure.station.name).await?;
 
     let stop_abbrev = match stop_abbrev {
-        None => return Ok(0.0),
+        None => return Ok((0, 0)),
         Some(abbrev) => abbrev,
     };
 
@@ -336,21 +358,25 @@ async fn eval<'e>(client: &'e Client, db: &'e PgPool, sect: &'e Section) -> anyh
 
     let ratio = occupancy as f32 / cap.capacity as f32;
 
-    Ok(ratio)
+    Ok((occupancy, cap.capacity))
 }
 
 /// Iterate over all sections and compute the score of each one. Then return the sum. Returns
 /// `0.0` if some required information can't be found on the db or api.
 async fn algorithm(client: &Client, db: &PgPool, conn: &Connection) -> f32 {
-    let sum_scores = futures::stream::iter(conn.sections.iter())
+    let (occ, cap) = futures::stream::iter(conn.sections.iter())
         .map(Result::Ok)
-        .try_fold(0.0, |acc, s| async move {
-            eval(client, db, s).await.map(|s| s + acc)
+        .try_fold((0, 0), |acc, s| async move {
+            eval(client, db, s)
+                .await
+                .map(|s| (s.0 + acc.0, acc.1 + s.1))
         })
         .await
-        .unwrap_or(0.0);
+        .unwrap_or((1, 1));
 
-    sum_scores
+    println!("{}/{}", occ, cap);
+
+    occ as f32 / cap as f32
 }
 
 #[derive(Serialize)]
